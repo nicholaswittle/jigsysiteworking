@@ -37,7 +37,12 @@
       <div class="stat-card"><span>Due at pickup</span><strong id="statSales">$0</strong></div>
     </section>
 
-    <div class="staff-grid">
+    <div class="staff-tabs" role="tablist" aria-label="Staff console views">
+      <button class="staff-tab" id="ordersTab" type="button" role="tab" aria-selected="true" aria-controls="ordersView">Orders</button>
+      <button class="staff-tab" id="reportTab" type="button" role="tab" aria-selected="false" aria-controls="reportView">Shift fee report</button>
+    </div>
+
+    <div class="staff-grid" id="ordersView" role="tabpanel" aria-labelledby="ordersTab">
       <aside class="control-panel" aria-label="Restaurant controls">
         <section class="panel-section">
           <div class="toggle-row">
@@ -81,6 +86,41 @@
         <div class="order-list" id="orderList"></div>
       </section>
     </div>
+
+    <section class="report-panel" id="reportView" role="tabpanel" aria-labelledby="reportTab" hidden>
+      <div class="report-head">
+        <div>
+          <p class="eyebrow">End-of-shift settlement</p>
+          <h2>Online order fee report</h2>
+          <p class="fine-print" id="reportPeriod">Accepted orders recorded in this browser.</p>
+        </div>
+        <button class="primary-button" id="printReport" type="button">Print shift report</button>
+      </div>
+      <div class="report-summary">
+        <div class="report-total">
+          <span>WiSense order fees earned</span>
+          <strong id="reportFees">$0.00</strong>
+          <small>$0.99 for each accepted online order</small>
+        </div>
+        <div class="report-metric">
+          <span>Accepted orders</span>
+          <strong id="reportCount">0</strong>
+        </div>
+        <div class="report-metric">
+          <span>Customer totals collected by Jigsy's</span>
+          <strong id="reportSales">$0.00</strong>
+        </div>
+      </div>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr><th>Accepted</th><th>Order</th><th>Customer total</th><th>WiSense fee</th></tr>
+          </thead>
+          <tbody id="reportRows"></tbody>
+        </table>
+      </div>
+      <p class="report-note">Waiting orders are not counted. This concept demo stores its report only on this device; production reporting will be shared and permanent.</p>
+    </section>
   </main>
 
   <section class="print-ticket" id="printTicket" aria-hidden="true"></section>

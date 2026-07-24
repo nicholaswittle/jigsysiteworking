@@ -5,6 +5,7 @@
   var filter = "New";
   var toast = document.getElementById("toast");
   var ticket = document.getElementById("printTicket");
+  var ONLINE_ORDER_FEE = 0.99;
 
   function showToast(message) {
     toast.textContent = message;
@@ -78,6 +79,84 @@
       String(accepted.filter(function (order) { return Boolean(order.printedAt); }).length);
     var sales = accepted.reduce(function (sum, order) { return sum + order.totals.total; }, 0);
     document.getElementById("statSales").textContent = demo.money(sales);
+    renderReport(accepted);
+  }
+
+  function acceptedTime(order) {
+    return new Date(order.acceptedAt || order.updatedAt || order.submittedAt);
+  }
+
+  function renderReport(accepted) {
+    var chronological = accepted.slice().sort(function (a, b) {
+      return acceptedTime(a) - acceptedTime(b);
+    });
+    var fees = chronological.reduce(function (sum, order) {
+      return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
+    }, 0);
+    var sales = chronological.reduce(function (sum, order) {
+      return sum + Number(order.totals.total || 0);
+    }, 0);
+    document.getElementById("reportCount").textContent = String(chronological.length);
+    document.getElementById("reportFees").textContent = demo.money(fees);
+    document.getElementById("reportSales").textContent = demo.money(sales);
+    document.getElementById("reportPeriod").textContent = chronological.length
+      ? "Accepted orders from " + acceptedTime(chronological[0]).toLocaleString() + " through now."
+      : "No accepted orders have been recorded in this browser.";
+    document.getElementById("reportRows").innerHTML = chronological.length
+      ? chronological.map(function (order) {
+          return "<tr><td>" + acceptedTime(order).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
+            "</td><td><strong>" + demo.escapeHTML(order.id) + "</strong></td><td>" +
+            demo.money(order.totals.total) + "</td><td>" +
+            demo.money(order.totals.fee || ONLINE_ORDER_FEE) + "</td></tr>";
+        }).join("")
+      : '<tr><td colspan="4" class="report-empty">Accept an order to add it to this report.</td></tr>';
+  }
+
+  function showStaffView(view) {
+    var showReport = view === "report";
+    document.getElementById("ordersView").hidden = showReport;
+    document.getElementById("reportView").hidden = !showReport;
+    document.getElementById("ordersTab").setAttribute("aria-selected", String(!showReport));
+    document.getElementById("reportTab").setAttribute("aria-selected", String(showReport));
+  }
+
+  function reportMarkup(accepted) {
+    var chronological = accepted.slice().sort(function (a, b) {
+      return acceptedTime(a) - acceptedTime(b);
+    });
+    var fees = chronological.reduce(function (sum, order) {
+      return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
+    }, 0);
+    var sales = chronological.reduce(function (sum, order) {
+      return sum + Number(order.totals.total || 0);
+    }, 0);
+    var rows = chronological.map(function (order) {
+      return '<div class="ticket-total"><span>' + demo.escapeHTML(order.id) + ' · ' +
+        acceptedTime(order).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
+        '</span><strong>' + demo.money(order.totals.fee || ONLINE_ORDER_FEE) + "</strong></div>";
+    }).join("");
+    return '<div class="ticket-center"><strong class="ticket-brand">JIGSY’S</strong><br>END-OF-SHIFT FEE REPORT</div>' +
+      '<div class="ticket-rule"></div>' +
+      '<div><strong>PRINTED:</strong> ' + new Date().toLocaleString() + '</div>' +
+      '<div><strong>ACCEPTED ORDERS:</strong> ' + chronological.length + '</div>' +
+      '<div class="ticket-rule"></div>' +
+      (rows || '<div class="ticket-center">NO ACCEPTED ORDERS</div>') +
+      '<div class="ticket-rule"></div>' +
+      '<div class="ticket-total"><span>Customer totals</span><strong>' + demo.money(sales) + '</strong></div>' +
+      '<div class="ticket-total ticket-due"><span>WISENSE FEES</span><strong>' + demo.money(fees) + '</strong></div>' +
+      '<div class="ticket-center">$0.99 per accepted online order</div>' +
+      '<div class="ticket-rule"></div>' +
+      '<div class="ticket-center">Jigsy’s collects customer payment at pickup.<br>This report records fees only.</div>';
+  }
+
+  function printShiftReport() {
+    var accepted = demo.read(demo.keys.orders, []).filter(function (order) {
+      return order.status === "Accepted";
+    });
+    ticket.innerHTML = reportMarkup(accepted);
+    ticket.setAttribute("aria-hidden", "false");
+    showToast("Opening shift fee report…");
+    window.setTimeout(function () { window.print(); }, 80);
   }
 
   function ticketMarkup(order) {
@@ -196,6 +275,9 @@
     renderOrders();
   });
   document.getElementById("seedOrders").addEventListener("click", seedOrders);
+  document.getElementById("ordersTab").addEventListener("click", function () { showStaffView("orders"); });
+  document.getElementById("reportTab").addEventListener("click", function () { showStaffView("report"); });
+  document.getElementById("printReport").addEventListener("click", printShiftReport);
   document.getElementById("resetDemo").addEventListener("click", function () {
     demo.write(demo.keys.orders, []);
     demo.write(demo.keys.cart, []);
