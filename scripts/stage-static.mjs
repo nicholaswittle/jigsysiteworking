@@ -9,6 +9,7 @@ const files = [
   "staff-demo.html",
   "demo.css",
   "demo-data.js",
+  "api-client.js",
   "order-demo.js",
   "staff-demo.js",
 ];

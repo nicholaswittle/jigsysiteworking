@@ -2,6 +2,7 @@
   "use strict";
 
   var demo = window.JigsyDemo;
+  var api = window.WiSenseOrdering;
   var cart = demo.read(demo.keys.cart, []);
   var activeCategory = "All";
   var activeProduct = null;
@@ -20,6 +21,7 @@
   var cartDrawer = document.getElementById("cartDrawer");
   var drawerBackdrop = document.getElementById("drawerBackdrop");
   var toast = document.getElementById("toast");
+  var statusLoading = false;
 
   function showToast(message) {
     toast.textContent = message;
@@ -96,27 +98,43 @@
       : "About " + settings.prepMinutes + " minutes";
   }
 
-  function renderOrderStatus() {
-    var orderId = demo.read(demo.keys.customerOrder, "");
-    var orders = demo.read(demo.keys.orders, []);
-    var order = orders.find(function (item) { return item.id === orderId; });
+  async function renderOrderStatus() {
+    var reference = demo.read(demo.keys.customerOrder, null);
     var panel = document.getElementById("orderStatusPanel");
-    if (!order) {
+    if (!reference || !reference.id || !reference.token) {
       panel.hidden = true;
       return;
     }
+    if (statusLoading) return;
+    statusLoading = true;
+    var order;
+    try {
+      order = await api.loadOrder(reference.id, reference.token);
+    } catch (error) {
+      if (error.status === 404) {
+        demo.write(demo.keys.customerOrder, null);
+        panel.hidden = true;
+      }
+      statusLoading = false;
+      return;
+    }
+    statusLoading = false;
     panel.hidden = false;
     var card = document.getElementById("orderStatusCard");
     var badge = document.getElementById("orderStatusBadge");
     var title = document.getElementById("orderStatusTitle");
     var copy = document.getElementById("orderStatusCopy");
     card.setAttribute("data-status", order.status);
-    if (order.status === "Accepted") {
+    if (order.status === "Completed") {
+      badge.textContent = "Completed";
+      title.textContent = order.id + " is complete";
+      copy.textContent = "This order was marked paid and completed. Thank you for ordering directly from Jigsy’s.";
+    } else if (order.status === "Accepted") {
       badge.textContent = "Accepted";
       title.textContent = order.id + " is confirmed";
       copy.textContent = "Jigsy’s accepted your order. Plan for pickup in about " +
         order.pickupMinutes + " minutes and pay " + demo.money(order.totals.total) + " at the counter.";
-    } else if (order.status === "Rejected") {
+    } else if (order.status === "Rejected" || order.status === "Cancelled") {
       badge.textContent = "Not accepted";
       title.textContent = order.id + " could not be accepted";
       copy.textContent = "Jigsy’s was unable to take this request. You will not be charged the online ordering fee. Please call the restaurant if you need help.";
@@ -182,8 +200,9 @@
 
   function totals() {
     var subtotal = cart.reduce(function (sum, item) { return sum + item.price; }, 0);
-    var fee = cart.length ? 0.99 : 0;
-    var tax = subtotal * 0.06;
+    var settings = demo.settings();
+    var fee = cart.length ? Number(settings.fee || 0.99) : 0;
+    var tax = subtotal * Number(settings.taxRate || 0.06);
     return { subtotal: subtotal, fee: fee, tax: tax, total: subtotal + fee + tax };
   }
 
@@ -302,14 +321,20 @@
     openDialog(checkoutDialog);
   });
 
-  document.getElementById("checkoutForm").addEventListener("submit", function (event) {
+  document.getElementById("checkoutForm").addEventListener("submit", async function (event) {
     event.preventDefault();
+    var checkoutForm = event.currentTarget;
+    var submitButton = checkoutForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.textContent = "Sending…";
     var settings = demo.settings();
     if (settings.paused) {
       closeDialog(checkoutDialog);
       showToast("Staff paused online ordering.");
       renderServiceState();
       renderProducts();
+      submitButton.disabled = false;
+      submitButton.textContent = "Send pickup request";
       return;
     }
     if (unavailableCartItems().length) {
@@ -317,36 +342,45 @@
       showToast("An item just sold out. Remove it before continuing.");
       renderProducts();
       renderCart();
+      submitButton.disabled = false;
+      submitButton.textContent = "Send pickup request";
       return;
     }
-    var form = new FormData(event.currentTarget);
-    var t = totals();
-    var orders = demo.read(demo.keys.orders, []);
-    var id = "J" + String(Date.now()).slice(-5);
-    var order = {
-      id: id,
-      status: "New",
-      submittedAt: new Date().toISOString(),
+    var form = new FormData(checkoutForm);
+    var submittedOrder = {
       pickupMinutes: Number(form.get("pickupTime")),
       customer: {
         name: String(form.get("customerName")),
         phone: String(form.get("customerPhone"))
       },
       notes: String(form.get("orderNotes") || ""),
-      items: cart.slice(),
-      totals: t
+      items: cart.slice()
     };
-    orders.unshift(order);
-    demo.write(demo.keys.orders, orders);
-    demo.write(demo.keys.customerOrder, id);
+    var order;
+    try {
+      order = await api.submitOrder(submittedOrder);
+    } catch (error) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Send pickup request";
+      showToast(error.message);
+      if (error.status === 409) {
+        await api.loadPublicSettings().catch(function () {});
+        renderServiceState();
+        renderProducts();
+      }
+      return;
+    }
+    demo.write(demo.keys.customerOrder, { id: order.id, token: order.publicToken });
     cart = [];
     renderCart();
     renderOrderStatus();
     closeDialog(checkoutDialog);
     document.getElementById("successCopy").textContent =
-      "Pickup request " + id + " is waiting in the staff console. Keep this order page open to see Accepted or Not accepted. " +
-      "A production version would also send that confirmation by text message.";
+      "Pickup request " + order.id + " is waiting for Jigsy’s. Keep this page available to see when it is accepted or declined.";
     openDialog(successDialog);
+    checkoutForm.reset();
+    submitButton.disabled = false;
+    submitButton.textContent = "Send pickup request";
   });
 
   document.getElementById("cartOpen").addEventListener("click", openCart);
@@ -355,6 +389,10 @@
   document.getElementById("itemDialogClose").addEventListener("click", function () { closeDialog(itemDialog); });
   document.getElementById("checkoutClose").addEventListener("click", function () { closeDialog(checkoutDialog); });
   document.getElementById("successClose").addEventListener("click", function () { closeDialog(successDialog); });
+  document.getElementById("successDone").addEventListener("click", function () {
+    closeDialog(successDialog);
+    document.getElementById("orderStatusPanel").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
   modalBackdrop.addEventListener("click", function () {
     document.querySelectorAll(".dialog.is-open").forEach(function (dialog) { closeDialog(dialog); });
   });
@@ -380,9 +418,32 @@
     }
   });
 
+  async function refreshPublicSettings() {
+    try {
+      await api.loadPublicSettings();
+    } catch {
+      demo.write(demo.keys.settings, {
+        paused: true,
+        prepMinutes: 30,
+        soldOut: [],
+        fee: 0.99,
+        taxRate: 0.06,
+        paymentMode: "manual"
+      });
+    }
+    renderServiceState();
+    renderProducts();
+    renderCart();
+  }
+
   renderTabs();
   renderProducts();
   renderServiceState();
   renderCart();
   renderOrderStatus();
+  refreshPublicSettings();
+  window.setInterval(function () {
+    refreshPublicSettings();
+    renderOrderStatus();
+  }, 5000);
 })();

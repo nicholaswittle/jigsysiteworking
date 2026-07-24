@@ -102,7 +102,7 @@
     try {
       var value = JSON.parse(localStorage.getItem(key));
       return value === null ? fallback : value;
-    } catch (error) {
+    } catch {
       return fallback;
     }
   }
@@ -113,7 +113,15 @@
   }
 
   function settings() {
-    return Object.assign({ paused: false, prepMinutes: 25, soldOut: [] }, read(KEYS.settings, {}));
+    return Object.assign({
+      paused: true,
+      prepMinutes: 30,
+      soldOut: [],
+      fee: 0.99,
+      taxRate: 0.06,
+      paymentMode: "manual",
+      squareConnected: false
+    }, read(KEYS.settings, {}));
   }
 
   function money(value) {

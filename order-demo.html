@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Jigsy's Pickup Ordering - Concept Demo</title>
-  <meta name="description" content="Interactive concept demo for direct pickup ordering at Jigsy's. No live payments or restaurant orders.">
+  <title>Jigsy's Online Pickup Ordering</title>
+  <meta name="description" content="Direct online pickup ordering for Jigsy's Old Forge Pizza.">
   <meta name="robots" content="noindex,nofollow">
   <link rel="icon" href="images/square-logo-full.png" type="image/png">
   <link rel="stylesheet" href="demo.css">
 </head>
 <body>
-  <div class="demo-alert">Concept demo only - customers pay at pickup and no real order reaches Jigsy's.</div>
+  <div class="demo-alert">WiSense pilot practice build · test orders go to the private demo console, not the restaurant.</div>
   <header class="demo-header">
     <nav class="demo-nav" aria-label="Demo navigation">
       <a class="demo-brand" href="index.html">Jigsy<span>'</span>s</a>
@@ -25,7 +25,7 @@
   <main>
     <section class="ordering-hero">
       <div class="hero-inner">
-        <p class="eyebrow">Direct pickup - concept preview</p>
+        <p class="eyebrow">Direct online pickup</p>
         <h1>Order the tray.<br>Skip the phone wait.</h1>
         <p class="hero-copy">Send a pickup request without entering a card. Jigsy's accepts it, prints a kitchen ticket, and collects payment at the counter.</p>
         <div class="service-state" id="serviceState">
@@ -70,7 +70,7 @@
       <div class="summary-row"><span>Online ordering fee</span><strong id="cartFee">$0.00</strong></div>
       <div class="summary-row"><span>Estimated tax (demo)</span><strong id="cartTax">$0.00</strong></div>
       <div class="summary-row total"><span>Estimated due at pickup</span><strong id="cartTotal">$0.00</strong></div>
-      <p class="fine-print">The 99-cent fee applies only to an accepted online order. Jigsy's collects the full amount in person—no online payment processing.</p>
+      <p class="fine-print">The 99-cent fee is included in completed online pickup orders. Rejected orders do not incur the fee. Jigsy's collects the full amount at pickup.</p>
       <button class="primary-button full-button" id="checkoutOpen" type="button">Enter pickup details</button>
     </div>
   </aside>
@@ -106,11 +106,11 @@
         <div class="notice">Pay at pickup: no card details are requested. Jigsy's would accept the request and print a kitchen ticket before the order is confirmed.</div>
         <div class="field">
           <label for="customerName">Name for pickup</label>
-          <input id="customerName" name="customerName" value="Demo Customer" required autocomplete="off">
+          <input id="customerName" name="customerName" required autocomplete="name" maxlength="80">
         </div>
         <div class="field">
           <label for="customerPhone">Phone</label>
-          <input id="customerPhone" name="customerPhone" value="(717) 555-0100" required autocomplete="off">
+          <input id="customerPhone" name="customerPhone" required autocomplete="tel" inputmode="tel" maxlength="30">
         </div>
         <div class="field">
           <label for="pickupTime">Pickup timing</label>
@@ -118,7 +118,7 @@
         </div>
         <div class="field">
           <label for="orderNotes">Order notes</label>
-          <textarea id="orderNotes" name="orderNotes" placeholder="Allergy note or pickup instruction (demo only)"></textarea>
+          <textarea id="orderNotes" name="orderNotes" maxlength="500" placeholder="Allergy note or pickup instruction"></textarea>
         </div>
       </div>
       <div class="dialog-footer">
@@ -131,14 +131,14 @@
   <section class="dialog" id="successDialog" role="dialog" aria-modal="true" aria-labelledby="successTitle" aria-hidden="true">
     <div class="dialog-head">
       <div>
-        <p class="eyebrow">Demo order created</p>
+        <p class="eyebrow">Order request received</p>
         <h2 id="successTitle">Request sent—not confirmed yet.</h2>
       </div>
       <button class="icon-button" id="successClose" type="button" aria-label="Close confirmation">×</button>
     </div>
     <div class="dialog-body">
       <p id="successCopy"></p>
-      <a class="primary-button full-button" href="staff-demo.html" style="display:block;text-align:center;text-decoration:none">Open staff console</a>
+      <button class="primary-button full-button" id="successDone" type="button">Return to order status</button>
     </div>
   </section>
 
@@ -146,6 +146,7 @@
 
   <footer class="demo-credit">Created by <a href="https://www.wisensellc.com" target="_blank" rel="noopener">WiSense LLC</a></footer>
   <script src="demo-data.js"></script>
+  <script src="api-client.js"></script>
   <script src="order-demo.js"></script>
 </body>
 </html>

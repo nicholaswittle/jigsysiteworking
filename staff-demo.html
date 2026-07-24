@@ -3,19 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Jigsy's Staff Order Console - Concept Demo</title>
-  <meta name="description" content="Interactive staff console concept for managing direct pickup orders at Jigsy's.">
+  <title>Jigsy's Staff Order Console</title>
+  <meta name="description" content="Secure staff console for managing Jigsy's direct pickup orders.">
   <meta name="robots" content="noindex,nofollow">
   <link rel="icon" href="images/square-logo-full.png" type="image/png">
   <link rel="stylesheet" href="demo.css">
 </head>
 <body>
-  <div class="demo-alert">Staff concept demo - changes affect this browser only.</div>
+  <div class="demo-alert">WiSense pilot practice build · shared test orders and settings update across devices.</div>
   <header class="demo-header">
     <nav class="demo-nav" aria-label="Demo navigation">
       <a class="demo-brand" href="index.html">Jigsy<span>'</span>s Staff</a>
       <div class="nav-actions">
         <a class="nav-link" href="index.html">Website</a>
+        <button class="nav-link" id="enableAlerts" type="button">Enable alerts</button>
+        <button class="nav-link" id="staffLogout" type="button">Sign out</button>
         <a class="cart-button" href="order-demo.html" style="text-decoration:none">Customer ordering</a>
       </div>
     </nav>
@@ -27,14 +29,14 @@
         <p class="eyebrow">Counter and kitchen view</p>
         <h1 class="staff-title">Accept and print</h1>
       </div>
-      <button class="secondary-button" id="seedOrders" type="button">Load sample rush</button>
+      <span class="connection-status" id="connectionStatus" role="status">Connecting…</span>
     </div>
 
     <section class="stats" aria-label="Order statistics">
       <div class="stat-card"><span>Waiting</span><strong id="statNew">0</strong></div>
-      <div class="stat-card"><span>Accepted</span><strong id="statAccepted">0</strong></div>
+      <div class="stat-card"><span>In progress</span><strong id="statAccepted">0</strong></div>
       <div class="stat-card"><span>Rejected</span><strong id="statRejected">0</strong></div>
-      <div class="stat-card"><span>WiSense fees today</span><strong id="statFees">$0.00</strong></div>
+      <div class="stat-card"><span>Completed fees today</span><strong id="statFees">$0.00</strong></div>
     </section>
 
     <div class="staff-tabs" role="tablist" aria-label="Staff console views">
@@ -49,7 +51,7 @@
           <div class="toggle-row">
             <div>
               <h2>Pause online orders</h2>
-              <p class="fine-print">Customer ordering closes immediately in this browser.</p>
+              <p class="fine-print">Customer ordering closes immediately on every device.</p>
             </div>
             <button class="switch" id="pauseToggle" type="button" role="switch" aria-checked="false" aria-label="Pause online orders"></button>
           </div>
@@ -65,7 +67,7 @@
           <p class="fine-print prep-range">Adjustable from 10 to 90 minutes in 5-minute steps.</p>
         </section>
         <section class="panel-section">
-          <button class="danger-button full-button" id="resetDemo" type="button">Reset all demo data</button>
+          <div class="payment-mode"><strong>Payment mode</strong><span id="paymentMode">Manual · pay at pickup</span></div>
         </section>
       </aside>
 
@@ -78,6 +80,7 @@
           <div class="order-filters">
             <button class="filter-button" type="button" data-filter="New" aria-pressed="true">Waiting</button>
             <button class="filter-button" type="button" data-filter="Accepted" aria-pressed="false">Accepted</button>
+            <button class="filter-button" type="button" data-filter="Completed" aria-pressed="false">Completed</button>
             <button class="filter-button" type="button" data-filter="Rejected" aria-pressed="false">Rejected</button>
             <button class="filter-button" type="button" data-filter="All" aria-pressed="false">All</button>
           </div>
@@ -116,10 +119,10 @@
         <div class="report-total">
           <span>WiSense order fees earned</span>
           <strong id="reportFees">$0.00</strong>
-          <small>$0.99 for each accepted online order</small>
+          <small>$0.99 for each completed and paid online order</small>
         </div>
         <div class="report-metric">
-          <span>Accepted orders</span>
+          <span>Completed orders</span>
           <strong id="reportCount">0</strong>
         </div>
         <div class="report-metric">
@@ -127,7 +130,7 @@
           <strong id="reportRejected">0</strong>
         </div>
         <div class="report-metric">
-          <span>Accepted order value</span>
+          <span>Completed order value</span>
           <strong id="reportSales">$0.00</strong>
         </div>
       </div>
@@ -139,14 +142,26 @@
           <tbody id="reportRows"></tbody>
         </table>
       </div>
-      <p class="report-note">Only accepted orders earn the $0.99 fee. Orders are archived by date instead of deleted. This concept demo stores reports only on this device; production reporting will be shared and permanent.</p>
+      <p class="report-note">Only completed and paid orders earn the $0.99 fee. Rejected, cancelled, and waiting orders remain in the permanent daily record with a $0.00 fee.</p>
     </section>
   </main>
 
   <section class="print-ticket" id="printTicket" aria-hidden="true"></section>
+  <section class="staff-auth" id="staffAuth" aria-labelledby="staffAuthTitle">
+    <form class="staff-auth-card" id="staffLoginForm">
+      <p class="eyebrow">Protected staff area</p>
+      <h1 id="staffAuthTitle">Open the order console</h1>
+      <p>Enter the restaurant staff passcode. Jigsy's Square password is never used here.</p>
+      <label for="staffPin">Staff passcode</label>
+      <input id="staffPin" name="staffPin" type="password" inputmode="numeric" autocomplete="current-password" required maxlength="64">
+      <p class="auth-error" id="staffAuthError" role="alert"></p>
+      <button class="primary-button full-button" type="submit">Open console</button>
+    </form>
+  </section>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <footer class="demo-credit">Created by <a href="https://www.wisensellc.com" target="_blank" rel="noopener">WiSense LLC</a></footer>
   <script src="demo-data.js"></script>
+  <script src="api-client.js"></script>
   <script src="staff-demo.js"></script>
 </body>
 </html>

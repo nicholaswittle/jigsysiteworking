@@ -2,6 +2,7 @@
   "use strict";
 
   var demo = window.JigsyDemo;
+  var api = window.WiSenseOrdering;
   var filter = "New";
   var toast = document.getElementById("toast");
   var ticket = document.getElementById("printTicket");
@@ -9,6 +10,10 @@
   var activeDay = dayKey(new Date());
   var selectedReportDay = activeDay;
   var activeAvailabilityCategory = demo.products[0].category;
+  var ordersCache = [];
+  var authenticated = false;
+  var refreshBusy = false;
+  var knownWaitingIds = new Set();
 
   function showToast(message) {
     toast.textContent = message;
@@ -16,10 +21,14 @@
     window.setTimeout(function () { toast.classList.remove("is-visible"); }, 1800);
   }
 
-  function updateSettings(patch) {
-    var settings = Object.assign({}, demo.settings(), patch);
-    demo.write(demo.keys.settings, settings);
-    renderControls();
+  async function updateSettings(patch) {
+    try {
+      await api.updateStaffSettings(patch);
+      renderControls();
+      setConnection(true);
+    } catch (error) {
+      handleStaffError(error);
+    }
   }
 
   function renderControls() {
@@ -27,6 +36,9 @@
     var pause = document.getElementById("pauseToggle");
     pause.setAttribute("aria-checked", String(settings.paused));
     document.getElementById("prepOutput").textContent = settings.prepMinutes + " min";
+    document.getElementById("paymentMode").textContent = settings.paymentMode === "square"
+      ? "Square connected"
+      : "Manual · pay at pickup";
     renderAvailability(settings);
   }
 
@@ -61,6 +73,8 @@
   function displayStatus(order) {
     if (order.status === "New") return "Waiting";
     if (order.status === "Rejected") return "Rejected";
+    if (order.status === "Completed") return "Completed";
+    if (order.status === "Cancelled") return "Cancelled";
     return "Accepted";
   }
 
@@ -87,7 +101,7 @@
   }
 
   function renderOrders() {
-    var orders = demo.read(demo.keys.orders, []);
+    var orders = ordersCache;
     var todayOrders = ordersForDay(orders, activeDay);
     var visible = todayOrders.filter(function (order) {
       if (filter === "All") return true;
@@ -97,21 +111,28 @@
     if (!visible.length) {
       list.innerHTML = '<div class="empty-state"><strong>No ' +
         (filter === "New" ? "waiting" : filter.toLowerCase()) +
-        ' requests.</strong><br>Place a customer demo order or load the sample rush.</div>';
+        ' orders.</strong><br>New customer orders will appear here automatically.</div>';
     } else {
       list.innerHTML = visible.map(function (order) {
         var submitted = new Date(order.submittedAt);
         var items = order.items.map(function (item) {
           return "<li><strong>" + demo.escapeHTML(item.name) + "</strong> - " + demo.escapeHTML(item.detail) + "</li>";
         }).join("");
+        var paymentLine = order.status === "Completed"
+          ? demo.money(order.totals.total) + " paid · completed"
+          : demo.money(order.totals.total) + " due at pickup";
         var action;
         if (order.status === "New") {
           action = '<button type="button" data-accept="' + order.id + '" class="primary">Accept &amp; print ticket</button>' +
             '<button type="button" data-reject="' + order.id + '" class="reject">Reject order</button>';
         } else if (order.status === "Accepted") {
-          action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>';
+          action = '<button type="button" data-complete="' + order.id + '" class="primary">Mark paid &amp; completed</button>' +
+            '<button type="button" data-print="' + order.id + '">Reprint ticket</button>';
+        } else if (order.status === "Completed") {
+          action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' +
+            '<span class="fine-print">Completed orders count toward the WiSense fee report.</span>';
         } else {
-          action = '<span class="fine-print">Rejected orders are kept in the daily report and do not earn a fee.</span>';
+          action = '<span class="fine-print">Rejected and cancelled orders remain in the daily report and do not earn a fee.</span>';
         }
         return '<article class="order-card">' +
           '<div class="order-card-top"><div><span class="order-id">' + demo.escapeHTML(order.id) + '</span> ' +
@@ -120,7 +141,7 @@
           '<div class="order-card-body"><ul class="order-items">' + items + '</ul><div class="order-customer"><strong>' +
           demo.escapeHTML(order.customer.name) + '</strong><br>' + demo.escapeHTML(order.customer.phone) +
           (order.notes ? "<br>Note: " + demo.escapeHTML(order.notes) : "") +
-          '<br><strong>' + demo.money(order.totals.total) + ' due at pickup</strong></div></div>' +
+          '<br><strong>' + paymentLine + '</strong></div></div>' +
           '<div class="order-actions">' + action + '</div></article>';
       }).join("");
     }
@@ -128,13 +149,14 @@
   }
 
   function renderStats(todayOrders, allOrders) {
-    var accepted = todayOrders.filter(function (order) { return order.status === "Accepted"; });
+    var completed = todayOrders.filter(function (order) { return order.status === "Completed"; });
     document.getElementById("statNew").textContent =
       String(todayOrders.filter(function (order) { return order.status === "New"; }).length);
-    document.getElementById("statAccepted").textContent = String(accepted.length);
+    document.getElementById("statAccepted").textContent =
+      String(todayOrders.filter(function (order) { return order.status === "Accepted"; }).length);
     document.getElementById("statRejected").textContent =
       String(todayOrders.filter(function (order) { return order.status === "Rejected"; }).length);
-    var fees = accepted.reduce(function (sum, order) {
+    var fees = completed.reduce(function (sum, order) {
       return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
     }, 0);
     document.getElementById("statFees").textContent = demo.money(fees);
@@ -155,15 +177,15 @@
     var chronological = ordersForDay(orders, selectedReportDay).sort(function (a, b) {
       return new Date(a.submittedAt) - new Date(b.submittedAt);
     });
-    var accepted = chronological.filter(function (order) { return order.status === "Accepted"; });
+    var completed = chronological.filter(function (order) { return order.status === "Completed"; });
     var rejected = chronological.filter(function (order) { return order.status === "Rejected"; });
-    var fees = accepted.reduce(function (sum, order) {
+    var fees = completed.reduce(function (sum, order) {
       return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
     }, 0);
-    var sales = accepted.reduce(function (sum, order) {
+    var sales = completed.reduce(function (sum, order) {
       return sum + Number(order.totals.total || 0);
     }, 0);
-    document.getElementById("reportCount").textContent = String(accepted.length);
+    document.getElementById("reportCount").textContent = String(completed.length);
     document.getElementById("reportRejected").textContent = String(rejected.length);
     document.getElementById("reportFees").textContent = demo.money(fees);
     document.getElementById("reportSales").textContent = demo.money(sales);
@@ -172,11 +194,11 @@
       " received on " + new Date(selectedReportDay + "T12:00:00").toLocaleDateString() + ".";
     document.getElementById("reportRows").innerHTML = chronological.length
       ? chronological.map(function (order) {
-          var acceptedOrder = order.status === "Accepted";
+          var completedOrder = order.status === "Completed";
           return "<tr><td>" + new Date(order.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
             "</td><td><strong>" + demo.escapeHTML(order.id) + "</strong></td><td>" +
             displayStatus(order) + "</td><td>" + demo.money(order.totals.total) + "</td><td>" +
-            demo.money(acceptedOrder ? (order.totals.fee || ONLINE_ORDER_FEE) : 0) + "</td></tr>";
+            demo.money(completedOrder ? (order.totals.fee || ONLINE_ORDER_FEE) : 0) + "</td></tr>";
         }).join("")
       : '<tr><td colspan="5" class="report-empty">No online requests were received on this date.</td></tr>';
   }
@@ -198,12 +220,13 @@
       return new Date(a.submittedAt) - new Date(b.submittedAt);
     });
     var accepted = chronological.filter(function (order) { return order.status === "Accepted"; });
+    var completed = chronological.filter(function (order) { return order.status === "Completed"; });
     var rejected = chronological.filter(function (order) { return order.status === "Rejected"; });
     var waiting = chronological.filter(function (order) { return order.status === "New"; });
-    var fees = accepted.reduce(function (sum, order) {
+    var fees = completed.reduce(function (sum, order) {
       return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
     }, 0);
-    var sales = accepted.reduce(function (sum, order) {
+    var sales = completed.reduce(function (sum, order) {
       return sum + Number(order.totals.total || 0);
     }, 0);
     var rows = chronological.map(function (order) {
@@ -211,7 +234,7 @@
         new Date(order.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
         '</span><strong>' + displayStatus(order).toUpperCase() + "</strong></div>" +
         '<div class="ticket-total"><small>' + demo.money(order.totals.total) +
-        ' order</small><small>' + (order.status === "Accepted" ? demo.money(order.totals.fee || ONLINE_ORDER_FEE) : "$0.00") +
+        ' order</small><small>' + (order.status === "Completed" ? demo.money(order.totals.fee || ONLINE_ORDER_FEE) : "$0.00") +
         " fee</small></div>";
     }).join("");
     return '<div class="ticket-center"><strong class="ticket-brand">JIGSY’S</strong><br>FULL-DAY ONLINE ORDER REPORT</div>' +
@@ -219,36 +242,37 @@
       '<div><strong>REPORT DATE:</strong> ' + new Date(selectedReportDay + "T12:00:00").toLocaleDateString() + '</div>' +
       '<div><strong>PRINTED:</strong> ' + new Date().toLocaleString() + '</div>' +
       '<div><strong>RECEIVED:</strong> ' + chronological.length + '</div>' +
-      '<div><strong>ACCEPTED:</strong> ' + accepted.length + ' &nbsp; <strong>REJECTED:</strong> ' + rejected.length + '</div>' +
+      '<div><strong>IN PROGRESS:</strong> ' + accepted.length + ' &nbsp; <strong>COMPLETED:</strong> ' + completed.length + '</div>' +
+      '<div><strong>REJECTED:</strong> ' + rejected.length + '</div>' +
       '<div><strong>STILL WAITING:</strong> ' + waiting.length + '</div>' +
       '<div class="ticket-rule"></div>' +
       (rows || '<div class="ticket-center">NO ONLINE REQUESTS</div>') +
       '<div class="ticket-rule"></div>' +
-      '<div class="ticket-total"><span>Accepted order value</span><strong>' + demo.money(sales) + '</strong></div>' +
+      '<div class="ticket-total"><span>Completed order value</span><strong>' + demo.money(sales) + '</strong></div>' +
       '<div class="ticket-total ticket-due"><span>WISENSE FEES</span><strong>' + demo.money(fees) + '</strong></div>' +
-      '<div class="ticket-center">$0.99 per accepted online order</div>' +
+      '<div class="ticket-center">$0.99 per completed and paid online order</div>' +
       '<div class="ticket-rule"></div>' +
-      '<div class="ticket-center">Jigsy’s collects customer payment at pickup.<br>Rejected and waiting orders earn no fee.</div>';
+      '<div class="ticket-center">Jigsy’s collects customer payment at pickup.<br>Only completed orders earn a fee.</div>';
   }
 
   function printDailyReport() {
-    var orders = demo.read(demo.keys.orders, []);
-    ticket.innerHTML = reportMarkup(orders);
+    ticket.innerHTML = reportMarkup(ordersCache);
     ticket.setAttribute("aria-hidden", "false");
     showToast("Opening full-day report…");
     window.setTimeout(function () { window.print(); }, 80);
   }
 
-  function rejectOrder(id) {
+  async function rejectOrder(id) {
     if (!window.confirm("Reject " + id + "? It will remain in the daily report with a $0.00 WiSense fee.")) return;
-    var orders = demo.read(demo.keys.orders, []);
-    var order = orders.find(function (item) { return item.id === id; });
+    var order = ordersCache.find(function (item) { return item.id === id; });
     if (!order || order.status !== "New") return;
-    order.status = "Rejected";
-    order.rejectedAt = new Date().toISOString();
-    demo.write(demo.keys.orders, orders);
-    renderOrders();
-    showToast(id + " rejected. No fee added.");
+    try {
+      await api.updateOrder(id, "reject");
+      await refreshStaffData();
+      showToast(id + " rejected. No fee added.");
+    } catch (error) {
+      handleStaffError(error);
+    }
   }
 
   function ticketMarkup(order) {
@@ -274,61 +298,111 @@
       '<div class="ticket-total"><span>Online ordering fee</span><strong>' + demo.money(order.totals.fee) + '</strong></div>' +
       '<div class="ticket-total ticket-due"><span>DUE AT PICKUP</span><strong>' + demo.money(order.totals.total) + '</strong></div>' +
       '<div class="ticket-rule"></div>' +
-      '<div class="ticket-center">COLLECT PAYMENT AT COUNTER<br>Demo ticket — no online payment</div>';
+      '<div class="ticket-center">COLLECT PAYMENT AT COUNTER<br>MARK PAID / COMPLETED AFTER PAYMENT</div>';
   }
 
-  function printOrder(id, acceptFirst) {
-    var orders = demo.read(demo.keys.orders, []);
-    var order = orders.find(function (item) { return item.id === id; });
+  async function printOrder(id, acceptFirst) {
+    var order = ordersCache.find(function (item) { return item.id === id; });
     if (!order) return;
-    if (acceptFirst) {
-      order.status = "Accepted";
-      order.acceptedAt = new Date().toISOString();
+    try {
+      if (acceptFirst) {
+        order = await api.updateOrder(id, "accept");
+      }
+      await api.updateOrder(id, "print");
+    } catch (error) {
+      handleStaffError(error);
+      return;
     }
-    order.printedAt = new Date().toISOString();
-    demo.write(demo.keys.orders, orders);
     ticket.innerHTML = ticketMarkup(order);
     ticket.setAttribute("aria-hidden", "false");
-    renderOrders();
+    await refreshStaffData();
     showToast(order.id + (acceptFirst ? " accepted. Opening ticket…" : " ticket ready."));
     window.setTimeout(function () { window.print(); }, 80);
   }
 
-  function seedOrders() {
-    var now = Date.now();
-    var sample = [
-      {
-        id: "J40128", status: "New", submittedAt: new Date(now - 2 * 60000).toISOString(), pickupMinutes: 25,
-        customer: { name: "Taylor R.", phone: "(717) 555-0142" }, notes: "Call when ready",
-        items: [
-          { name: "Chick Fil “J”", detail: "12 cuts", price: 27.99 },
-          { name: "Jumbo Wings", detail: "10 wings · Garlic Parm · Ranch + $1.00", price: 13.99 }
-        ],
-        totals: { subtotal: 41.98, fee: 0.99, tax: 2.52, total: 45.49 }
-      },
-      {
-        id: "J40116", status: "New", submittedAt: new Date(now - 8 * 60000).toISOString(), pickupMinutes: 30,
-        customer: { name: "Morgan L.", phone: "(717) 555-0188" }, notes: "",
-        items: [
-          { name: "Traditional Red Tray", detail: "12 cuts · Pepperoni, Onion", price: 21.99 },
-          { name: "Cheesy Bread", detail: "One order", price: 9.99 }
-        ],
-        totals: { subtotal: 31.98, fee: 0.99, tax: 1.92, total: 34.89 }
-      },
-      {
-        id: "J40093", status: "Accepted", submittedAt: new Date(now - 14 * 60000).toISOString(), pickupMinutes: 25,
-        acceptedAt: new Date(now - 12 * 60000).toISOString(), printedAt: new Date(now - 12 * 60000).toISOString(),
-        customer: { name: "Chris D.", phone: "(717) 555-0114" }, notes: "Extra napkins",
-        items: [
-          { name: "Double White Tray", detail: "6 cuts", price: 18.99 },
-          { name: "Fried Pickles", detail: "One order", price: 9.99 }
-        ],
-        totals: { subtotal: 28.98, fee: 0.99, tax: 1.74, total: 31.71 }
+  async function completeOrder(id) {
+    if (!window.confirm("Mark " + id + " paid and completed? This adds the $0.99 WiSense fee to the report.")) return;
+    try {
+      await api.updateOrder(id, "complete");
+      await refreshStaffData();
+      showToast(id + " marked paid and completed.");
+    } catch (error) {
+      handleStaffError(error);
+    }
+  }
+
+  function setConnection(connected) {
+    var status = document.getElementById("connectionStatus");
+    status.textContent = connected ? "Live · checking for orders" : "Connection interrupted";
+    status.classList.toggle("is-offline", !connected);
+  }
+
+  function showAuth(message) {
+    authenticated = false;
+    document.getElementById("staffAuth").hidden = false;
+    document.getElementById("staffAuthError").textContent = message || "";
+    document.getElementById("staffPin").focus();
+  }
+
+  function handleStaffError(error) {
+    setConnection(false);
+    if (error && error.status === 401) {
+      showAuth("Your staff session ended. Enter the passcode again.");
+      return;
+    }
+    showToast(error && error.message ? error.message : "The ordering service could not be reached.");
+  }
+
+  function playOrderAlert(order) {
+    try {
+      var AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        var context = new AudioContext();
+        var oscillator = context.createOscillator();
+        var gain = context.createGain();
+        oscillator.frequency.value = 880;
+        gain.gain.setValueAtTime(0.16, context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.7);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start();
+        oscillator.stop(context.currentTime + 0.7);
       }
-    ];
-    demo.write(demo.keys.orders, sample);
-    renderOrders();
-    showToast("Sample pickup requests loaded.");
+    } catch {
+      // Browser sound support varies; the visible queue remains authoritative.
+    }
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("New Jigsy's order " + order.id, {
+        body: order.customer.name + " · " + demo.money(order.totals.total) + " due at pickup",
+        tag: order.id
+      });
+    }
+    showToast("New order " + order.id + " received.");
+  }
+
+  async function refreshStaffData(silent) {
+    if (!authenticated || refreshBusy) return;
+    refreshBusy = true;
+    try {
+      var result = await Promise.all([api.loadStaffSettings(), api.loadStaffOrders()]);
+      var nextOrders = result[1];
+      if (!silent) {
+        nextOrders.filter(function (order) {
+          return order.status === "New" && !knownWaitingIds.has(order.id);
+        }).forEach(playOrderAlert);
+      }
+      ordersCache = nextOrders;
+      knownWaitingIds = new Set(nextOrders.filter(function (order) {
+        return order.status === "New";
+      }).map(function (order) { return order.id; }));
+      renderControls();
+      renderOrders();
+      setConnection(true);
+    } catch (error) {
+      handleStaffError(error);
+    } finally {
+      refreshBusy = false;
+    }
   }
 
   document.getElementById("pauseToggle").addEventListener("click", function () {
@@ -361,9 +435,11 @@
     var accept = event.target.closest("[data-accept]");
     var reject = event.target.closest("[data-reject]");
     var reprint = event.target.closest("[data-print]");
+    var complete = event.target.closest("[data-complete]");
     if (accept) printOrder(accept.getAttribute("data-accept"), true);
     if (reject) rejectOrder(reject.getAttribute("data-reject"));
     if (reprint) printOrder(reprint.getAttribute("data-print"), false);
+    if (complete) completeOrder(complete.getAttribute("data-complete"));
   });
   document.querySelector(".order-filters").addEventListener("click", function (event) {
     var button = event.target.closest("[data-filter]");
@@ -374,40 +450,68 @@
     });
     renderOrders();
   });
-  document.getElementById("seedOrders").addEventListener("click", seedOrders);
   document.getElementById("ordersTab").addEventListener("click", function () { showStaffView("orders"); });
   document.getElementById("menuTab").addEventListener("click", function () { showStaffView("menu"); });
   document.getElementById("reportTab").addEventListener("click", function () { showStaffView("report"); });
   document.getElementById("reportDate").addEventListener("change", function (event) {
     selectedReportDay = event.target.value;
-    renderReport(demo.read(demo.keys.orders, []));
+    renderReport(ordersCache);
   });
   document.getElementById("printReport").addEventListener("click", printDailyReport);
-  document.getElementById("resetDemo").addEventListener("click", function () {
-    demo.write(demo.keys.orders, []);
-    demo.write(demo.keys.cart, []);
-    demo.write(demo.keys.customerOrder, null);
-    demo.write(demo.keys.settings, { paused: false, prepMinutes: 25, soldOut: [] });
-    renderControls();
-    renderOrders();
-    showToast("Demo data reset.");
-  });
-  window.addEventListener("storage", function () { renderControls(); renderOrders(); });
-  window.addEventListener("jigsy-demo-change", function () { renderControls(); renderOrders(); });
-
-  var legacyOrders = demo.read(demo.keys.orders, []);
-  var legacyChanged = false;
-  legacyOrders.forEach(function (order) {
-    if (order.status !== "New" && order.status !== "Accepted" && order.status !== "Rejected") {
-      order.status = "Accepted";
-      order.acceptedAt = order.acceptedAt || order.updatedAt || order.submittedAt;
-      legacyChanged = true;
+  document.getElementById("staffLoginForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
+    var form = event.currentTarget;
+    var button = form.querySelector('button[type="submit"]');
+    var pin = document.getElementById("staffPin").value;
+    button.disabled = true;
+    button.textContent = "Opening…";
+    document.getElementById("staffAuthError").textContent = "";
+    try {
+      await api.staffLogin(pin);
+      authenticated = true;
+      document.getElementById("staffAuth").hidden = true;
+      document.getElementById("staffPin").value = "";
+      await refreshStaffData(true);
+    } catch (error) {
+      document.getElementById("staffAuthError").textContent = error.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = "Open console";
     }
   });
-  if (legacyChanged) demo.write(demo.keys.orders, legacyOrders);
+  document.getElementById("staffLogout").addEventListener("click", async function () {
+    await api.staffLogout().catch(function () {});
+    ordersCache = [];
+    knownWaitingIds = new Set();
+    renderOrders();
+    showAuth("");
+  });
+  document.getElementById("enableAlerts").addEventListener("click", async function (event) {
+    var alertButton = event.currentTarget;
+    if (!("Notification" in window)) {
+      showToast("This browser does not support system notifications.");
+      return;
+    }
+    var permission = await Notification.requestPermission();
+    alertButton.textContent = permission === "granted" ? "Alerts enabled" : "Alerts blocked";
+    showToast(permission === "granted"
+      ? "New-order browser alerts are enabled."
+      : "Allow notifications in the browser settings to receive alerts.");
+  });
+  window.addEventListener("storage", function () { renderControls(); });
+  async function bootStaffConsole() {
+    try {
+      await api.staffSession();
+      authenticated = true;
+      document.getElementById("staffAuth").hidden = true;
+      await refreshStaffData(true);
+    } catch {
+      showAuth("");
+    }
+  }
 
-  renderControls();
-  renderOrders();
+  bootStaffConsole();
+  window.setInterval(function () { refreshStaffData(false); }, 4000);
   window.setInterval(function () {
     var today = dayKey(new Date());
     if (today === activeDay) return;

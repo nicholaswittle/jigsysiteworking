@@ -6,11 +6,12 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "stage": "node scripts/stage-static.mjs",
-    "dev": "node scripts/stage-static.mjs && WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
-    "build": "node scripts/stage-static.mjs && WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
+    "catalog": "node scripts/export-menu-catalog.mjs",
+    "stage": "node scripts/export-menu-catalog.mjs && node scripts/stage-static.mjs",
+    "dev": "node scripts/export-menu-catalog.mjs && node scripts/stage-static.mjs && WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
+    "build": "node scripts/export-menu-catalog.mjs && node scripts/stage-static.mjs && WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "node scripts/stage-static.mjs && vinext build",
+    "test": "node scripts/export-menu-catalog.mjs && node scripts/stage-static.mjs && vinext build",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
