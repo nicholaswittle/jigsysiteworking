@@ -86,8 +86,23 @@
     return new Date(order.acceptedAt || order.updatedAt || order.submittedAt);
   }
 
+  function shiftStartedAt() {
+    var saved = demo.settings().shiftStartedAt;
+    if (saved && !Number.isNaN(new Date(saved).getTime())) return new Date(saved);
+    var start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  function currentShiftAccepted(accepted) {
+    var start = shiftStartedAt().getTime();
+    return accepted.filter(function (order) {
+      return acceptedTime(order).getTime() >= start;
+    });
+  }
+
   function renderReport(accepted) {
-    var chronological = accepted.slice().sort(function (a, b) {
+    var chronological = currentShiftAccepted(accepted).sort(function (a, b) {
       return acceptedTime(a) - acceptedTime(b);
     });
     var fees = chronological.reduce(function (sum, order) {
@@ -99,9 +114,8 @@
     document.getElementById("reportCount").textContent = String(chronological.length);
     document.getElementById("reportFees").textContent = demo.money(fees);
     document.getElementById("reportSales").textContent = demo.money(sales);
-    document.getElementById("reportPeriod").textContent = chronological.length
-      ? "Accepted orders from " + acceptedTime(chronological[0]).toLocaleString() + " through now."
-      : "No accepted orders have been recorded in this browser.";
+    document.getElementById("reportPeriod").textContent =
+      "Current shift started " + shiftStartedAt().toLocaleString() + ". Only accepted orders are counted.";
     document.getElementById("reportRows").innerHTML = chronological.length
       ? chronological.map(function (order) {
           return "<tr><td>" + acceptedTime(order).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
@@ -121,7 +135,7 @@
   }
 
   function reportMarkup(accepted) {
-    var chronological = accepted.slice().sort(function (a, b) {
+    var chronological = currentShiftAccepted(accepted).sort(function (a, b) {
       return acceptedTime(a) - acceptedTime(b);
     });
     var fees = chronological.reduce(function (sum, order) {
@@ -138,6 +152,7 @@
     return '<div class="ticket-center"><strong class="ticket-brand">JIGSY’S</strong><br>END-OF-SHIFT FEE REPORT</div>' +
       '<div class="ticket-rule"></div>' +
       '<div><strong>PRINTED:</strong> ' + new Date().toLocaleString() + '</div>' +
+      '<div><strong>SHIFT START:</strong> ' + shiftStartedAt().toLocaleString() + '</div>' +
       '<div><strong>ACCEPTED ORDERS:</strong> ' + chronological.length + '</div>' +
       '<div class="ticket-rule"></div>' +
       (rows || '<div class="ticket-center">NO ACCEPTED ORDERS</div>') +
@@ -157,6 +172,13 @@
     ticket.setAttribute("aria-hidden", "false");
     showToast("Opening shift fee report…");
     window.setTimeout(function () { window.print(); }, 80);
+  }
+
+  function startNextShift() {
+    if (!window.confirm("Start a new shift? Current orders stay saved, but the fee report will restart at $0.00.")) return;
+    updateSettings({ shiftStartedAt: new Date().toISOString() });
+    renderOrders();
+    showToast("New shift started. Fee report reset.");
   }
 
   function ticketMarkup(order) {
@@ -278,10 +300,11 @@
   document.getElementById("ordersTab").addEventListener("click", function () { showStaffView("orders"); });
   document.getElementById("reportTab").addEventListener("click", function () { showStaffView("report"); });
   document.getElementById("printReport").addEventListener("click", printShiftReport);
+  document.getElementById("startNextShift").addEventListener("click", startNextShift);
   document.getElementById("resetDemo").addEventListener("click", function () {
     demo.write(demo.keys.orders, []);
     demo.write(demo.keys.cart, []);
-    demo.write(demo.keys.settings, { paused: false, prepMinutes: 25, soldOut: [] });
+    demo.write(demo.keys.settings, { paused: false, prepMinutes: 25, soldOut: [], shiftStartedAt: new Date().toISOString() });
     renderControls();
     renderOrders();
     showToast("Demo data reset.");

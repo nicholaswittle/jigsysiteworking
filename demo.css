@@ -378,6 +378,7 @@ h1 {
 .report-panel { border: 1px solid var(--line); background: var(--surface); }
 .report-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px; border-bottom: 1px solid var(--line); }
 .report-head h2 { margin: 4px 0 7px; font-size: 1.35rem; }
+.report-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .report-summary { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
 .report-total, .report-metric { background: var(--paper); padding: 22px; }
 .report-total span, .report-metric span { display: block; color: var(--muted); font: 750 .69rem/1.25 var(--display); text-transform: uppercase; letter-spacing: .07em; }
@@ -424,7 +425,7 @@ h1 {
   .choice-grid { grid-template-columns: 1fr; }
   .order-card-body { grid-template-columns: 1fr; }
   .report-head { align-items: stretch; flex-direction: column; }
-  .report-head .primary-button { width: 100%; }
+  .report-actions { display: grid; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
