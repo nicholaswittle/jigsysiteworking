@@ -680,7 +680,6 @@ async function beginSquareConnect(request: Request, env: OrderingEnv) {
   authorizeUrl.searchParams.set("scope", SQUARE_SCOPES.join(" "));
   authorizeUrl.searchParams.set("state", state);
   authorizeUrl.searchParams.set("session", "false");
-  authorizeUrl.searchParams.set("redirect_uri", env.SQUARE_REDIRECT_URI!);
   const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
   return json(
     { authorizeUrl: authorizeUrl.toString() },
@@ -730,7 +729,6 @@ async function completeSquareConnect(request: Request, url: URL, env: OrderingEn
       client_secret: env.SQUARE_APPLICATION_SECRET,
       code,
       grant_type: "authorization_code",
-      redirect_uri: env.SQUARE_REDIRECT_URI,
     }),
   });
   const tokenData = await tokenResponse.json() as {
