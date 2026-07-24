@@ -339,6 +339,7 @@ h1 {
 .notice { padding: 11px 12px; background: #fff1c4; border: 1px solid #dec477; font-size: .82rem; line-height: 1.4; }
 
 .staff-shell { max-width: 1260px; margin: 0 auto; padding: 34px 22px 72px; }
+.staff-shell [hidden] { display: none !important; }
 .staff-topline { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
 .staff-grid { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 20px; }
 .control-panel, .orders-panel, .stat-card {
