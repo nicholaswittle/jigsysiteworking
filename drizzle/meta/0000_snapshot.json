@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "749d9484-8d2d-4cb3-807a-9c74a52c8956",
+  "id": "fde94d56-88bb-4ebb-a27b-146032be4e7d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "orders": {
@@ -155,6 +155,23 @@
             "public_token"
           ],
           "isUnique": true
+        },
+        "orders_restaurant_submitted_idx": {
+          "name": "orders_restaurant_submitted_idx",
+          "columns": [
+            "restaurant_id",
+            "submitted_at"
+          ],
+          "isUnique": false
+        },
+        "orders_restaurant_status_idx": {
+          "name": "orders_restaurant_status_idx",
+          "columns": [
+            "restaurant_id",
+            "status",
+            "submitted_at"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},

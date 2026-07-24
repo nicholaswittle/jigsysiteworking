@@ -22,6 +22,8 @@ CREATE TABLE `orders` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `orders_public_token_unique` ON `orders` (`public_token`);--> statement-breakpoint
+CREATE INDEX `orders_restaurant_submitted_idx` ON `orders` (`restaurant_id`,`submitted_at`);--> statement-breakpoint
+CREATE INDEX `orders_restaurant_status_idx` ON `orders` (`restaurant_id`,`status`,`submitted_at`);--> statement-breakpoint
 CREATE TABLE `restaurant_settings` (
 	`restaurant_id` text PRIMARY KEY NOT NULL,
 	`value_json` text NOT NULL,
