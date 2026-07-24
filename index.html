@@ -145,6 +145,18 @@
     text-rendering: optimizeLegibility;
   }
 
+  .demo-ribbon {
+    background: #F2C14E;
+    color: #22150F;
+    font-family: var(--display);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-align: center;
+    padding: 9px 18px;
+  }
+  .demo-ribbon a { margin-left: 10px; text-underline-offset: 3px; }
+
   .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
 
   .eyebrow {
@@ -787,6 +799,12 @@
 </head>
 <body>
 
+<div class="demo-ribbon">
+  Ordering concept demo - no live payments or restaurant orders.
+  <a href="order-demo.html">Try customer ordering</a>
+  <a href="staff-demo.html">Open staff console</a>
+</div>
+
 <div class="topbar">
   <div class="topbar-inner">
     <div class="brand-cluster">
@@ -799,6 +817,7 @@
       <a class="nav-link" href="#menu">Menu</a>
       <a class="nav-link" href="#faq">FAQ</a>
       <a class="nav-link" href="#visit">Visit</a>
+      <a class="nav-link" href="order-demo.html">Ordering demo</a>
       <span class="sep"></span>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch color theme">Dark</button>
       <a class="call-btn" href="tel:+17177327708">Call to order</a>
@@ -819,6 +838,7 @@
     <div class="cta-row">
       <a class="btn btn-primary" href="tel:+17177327708">Call · (717) 732-7708</a>
       <a class="btn btn-ghost" href="#menu">See the menu →</a>
+      <a class="btn btn-ghost" href="order-demo.html">Preview online pickup →</a>
     </div>
   </div>
 </header>
@@ -893,6 +913,7 @@
       <h2>Call It In</h2>
       <p class="order-lede">We're phone-order and dine-in — no app, no online cart. Pick out your tray, pick up the phone, and we'll have it hot.</p>
       <a class="order-phone" href="tel:+17177327708">(717) 732-7708</a>
+      <p><a class="btn btn-primary" href="order-demo.html">Preview pickup ordering</a></p>
       <p class="order-status" id="orderStatus"><span class="beat"></span><span id="orderStatusText">Checking today's hours…</span></p>
     </div>
     <div class="order-steps scroll-in">

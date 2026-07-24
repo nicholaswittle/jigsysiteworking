@@ -1,4 +1,16 @@
-# Jigsy's Old Forge Pizza — website concept
+# Jigsy's Old Forge Pizza — isolated ordering demo
+
+This directory is a separate clone used to prototype direct pickup ordering
+without changing the original Jigsy website concept or its live deployment.
+
+## Demo routes
+
+- `index.html` — existing concept site with links into the isolated demo
+- `order-demo.html` — customer pickup menu, modifiers, cart, and simulated checkout
+- `staff-demo.html` — order queue, prep time, pause, sold-out, and status controls
+
+All orders and settings use browser-local storage. No payment information is
+requested, no backend is connected, and nothing reaches the restaurant.
 
 A redesign concept / practice template for **Jigsy's Brewpub & Restaurant**
 (Old Forge–style pizza, Enola, PA). Single self-contained `index.html` plus a

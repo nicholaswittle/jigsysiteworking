@@ -1,1 +1,8 @@
 .vercel
+node_modules/
+.next/
+dist/
+public/
+.wrangler/
+.env*
+*.tgz

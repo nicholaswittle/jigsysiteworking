@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jigsy's Staff Order Console - Concept Demo</title>
+  <meta name="description" content="Interactive staff console concept for managing direct pickup orders at Jigsy's.">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="images/square-logo-full.png" type="image/png">
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+  <div class="demo-alert">Staff concept demo - changes affect this browser only.</div>
+  <header class="demo-header">
+    <nav class="demo-nav" aria-label="Demo navigation">
+      <a class="demo-brand" href="index.html">Jigsy<span>'</span>s Staff</a>
+      <div class="nav-actions">
+        <a class="nav-link" href="index.html">Website</a>
+        <a class="cart-button" href="order-demo.html" style="text-decoration:none">Customer ordering</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="staff-shell">
+    <div class="staff-topline">
+      <div>
+        <p class="eyebrow">Counter and kitchen view</p>
+        <h1 class="staff-title">Pickup order control</h1>
+      </div>
+      <button class="secondary-button" id="seedOrders" type="button">Load sample rush</button>
+    </div>
+
+    <section class="stats" aria-label="Order statistics">
+      <div class="stat-card"><span>New orders</span><strong id="statNew">0</strong></div>
+      <div class="stat-card"><span>In progress</span><strong id="statProgress">0</strong></div>
+      <div class="stat-card"><span>Ready</span><strong id="statReady">0</strong></div>
+      <div class="stat-card"><span>Demo sales</span><strong id="statSales">$0</strong></div>
+    </section>
+
+    <div class="staff-grid">
+      <aside class="control-panel" aria-label="Restaurant controls">
+        <section class="panel-section">
+          <div class="toggle-row">
+            <div>
+              <h2>Pause online orders</h2>
+              <p class="fine-print">Customer ordering closes immediately in this browser.</p>
+            </div>
+            <button class="switch" id="pauseToggle" type="button" role="switch" aria-checked="false" aria-label="Pause online orders"></button>
+          </div>
+        </section>
+        <section class="panel-section">
+          <h2>Pickup prep time</h2>
+          <div class="stepper">
+            <button id="prepDown" type="button" aria-label="Reduce prep time">−</button>
+            <output id="prepOutput">25 min</output>
+            <button id="prepUp" type="button" aria-label="Increase prep time">+</button>
+          </div>
+        </section>
+        <section class="panel-section">
+          <h2>Item availability</h2>
+          <p class="fine-print">Mark an item sold out; it becomes unavailable on the customer menu.</p>
+          <div class="sold-out-list" id="soldOutList"></div>
+        </section>
+        <section class="panel-section">
+          <button class="danger-button full-button" id="resetDemo" type="button">Reset all demo data</button>
+        </section>
+      </aside>
+
+      <section class="orders-panel" aria-labelledby="ordersHeading">
+        <div class="orders-head">
+          <h2 id="ordersHeading">Order queue</h2>
+          <div class="order-filters">
+            <button class="filter-button" type="button" data-filter="Open" aria-pressed="true">Open</button>
+            <button class="filter-button" type="button" data-filter="Completed" aria-pressed="false">Completed</button>
+            <button class="filter-button" type="button" data-filter="All" aria-pressed="false">All</button>
+          </div>
+        </div>
+        <div class="order-list" id="orderList"></div>
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="demo-data.js"></script>
+  <script src="staff-demo.js"></script>
+</body>
+</html>
+
