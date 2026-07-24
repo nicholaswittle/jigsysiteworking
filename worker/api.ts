@@ -535,7 +535,7 @@ async function createOrder(request: Request, env: OrderingEnv) {
           pickup_minutes, customer_json, notes, items_json, subtotal_cents,
           fee_cents, tax_cents, total_cents, payment_mode, payment_status,
           square_payment_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         id,
         RESTAURANT_ID,
