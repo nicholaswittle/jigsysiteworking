@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="demo.css">
 </head>
 <body>
-  <div class="demo-alert">Concept demo only - no payment is collected and no order reaches Jigsy's.</div>
+  <div class="demo-alert">Concept demo only - customers pay at pickup and no real order reaches Jigsy's.</div>
   <header class="demo-header">
     <nav class="demo-nav" aria-label="Demo navigation">
       <a class="demo-brand" href="index.html">Jigsy<span>'</span>s</a>
@@ -27,7 +27,7 @@
       <div class="hero-inner">
         <p class="eyebrow">Direct pickup - concept preview</p>
         <h1>Order the tray.<br>Skip the phone wait.</h1>
-        <p class="hero-copy">A customer-facing demo built around Jigsy's real tray sizes, wing sauces, pickup timing, and kitchen control.</p>
+        <p class="hero-copy">Send a pickup request without entering a card. Jigsy's accepts it, prints a kitchen ticket, and collects payment at the counter.</p>
         <div class="service-state" id="serviceState"><span class="state-dot"></span><span id="serviceStateText">Pickup demo available</span></div>
       </div>
     </section>
@@ -53,11 +53,11 @@
     <div class="cart-items" id="cartItems"></div>
     <div class="cart-summary">
       <div class="summary-row"><span>Food subtotal</span><strong id="cartSubtotal">$0.00</strong></div>
-      <div class="summary-row"><span>WiSense order fee</span><strong id="cartFee">$0.00</strong></div>
+      <div class="summary-row"><span>Online ordering fee</span><strong id="cartFee">$0.00</strong></div>
       <div class="summary-row"><span>Estimated tax (demo)</span><strong id="cartTax">$0.00</strong></div>
-      <div class="summary-row total"><span>Demo total</span><strong id="cartTotal">$0.00</strong></div>
-      <p class="fine-print">The 99-cent WiSense fee appears only when an online order is completed. Processor pricing and final tax handling would be confirmed before a real pilot.</p>
-      <button class="primary-button full-button" id="checkoutOpen" type="button">Continue to demo checkout</button>
+      <div class="summary-row total"><span>Estimated due at pickup</span><strong id="cartTotal">$0.00</strong></div>
+      <p class="fine-print">The 99-cent fee applies only to an accepted online order. Jigsy's collects the full amount in person—no online payment processing.</p>
+      <button class="primary-button full-button" id="checkoutOpen" type="button">Enter pickup details</button>
     </div>
   </aside>
 
@@ -82,14 +82,14 @@
   <section class="dialog" id="checkoutDialog" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle" aria-hidden="true">
     <div class="dialog-head">
       <div>
-        <p class="eyebrow">Simulated checkout</p>
+        <p class="eyebrow">Pickup request</p>
         <h2 id="checkoutTitle">Pickup details</h2>
       </div>
       <button class="icon-button" id="checkoutClose" type="button" aria-label="Close checkout">×</button>
     </div>
     <form id="checkoutForm">
       <div class="dialog-body">
-        <div class="notice">Demo mode: no card details are requested, no payment is collected, and no order is sent to the restaurant.</div>
+        <div class="notice">Pay at pickup: no card details are requested. Jigsy's would accept the request and print a kitchen ticket before the order is confirmed.</div>
         <div class="field">
           <label for="customerName">Name for pickup</label>
           <input id="customerName" name="customerName" value="Demo Customer" required autocomplete="off">
@@ -108,8 +108,8 @@
         </div>
       </div>
       <div class="dialog-footer">
-        <div class="dialog-price"><span>Demo total</span><strong id="checkoutTotal">$0.00</strong></div>
-        <button class="primary-button full-button" type="submit">Place simulated order</button>
+        <div class="dialog-price"><span>Estimated due at pickup</span><strong id="checkoutTotal">$0.00</strong></div>
+        <button class="primary-button full-button" type="submit">Send pickup request</button>
       </div>
     </form>
   </section>
@@ -118,7 +118,7 @@
     <div class="dialog-head">
       <div>
         <p class="eyebrow">Demo order created</p>
-        <h2 id="successTitle">The staff console has it.</h2>
+        <h2 id="successTitle">Waiting for Jigsy's to accept.</h2>
       </div>
       <button class="icon-button" id="successClose" type="button" aria-label="Close confirmation">×</button>
     </div>
@@ -134,4 +134,3 @@
   <script src="order-demo.js"></script>
 </body>
 </html>
-

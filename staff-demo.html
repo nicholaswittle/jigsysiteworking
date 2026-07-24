@@ -25,16 +25,16 @@
     <div class="staff-topline">
       <div>
         <p class="eyebrow">Counter and kitchen view</p>
-        <h1 class="staff-title">Pickup order control</h1>
+        <h1 class="staff-title">Accept and print</h1>
       </div>
       <button class="secondary-button" id="seedOrders" type="button">Load sample rush</button>
     </div>
 
     <section class="stats" aria-label="Order statistics">
-      <div class="stat-card"><span>New orders</span><strong id="statNew">0</strong></div>
-      <div class="stat-card"><span>In progress</span><strong id="statProgress">0</strong></div>
-      <div class="stat-card"><span>Ready</span><strong id="statReady">0</strong></div>
-      <div class="stat-card"><span>Demo sales</span><strong id="statSales">$0</strong></div>
+      <div class="stat-card"><span>Waiting</span><strong id="statNew">0</strong></div>
+      <div class="stat-card"><span>Accepted</span><strong id="statAccepted">0</strong></div>
+      <div class="stat-card"><span>Tickets printed</span><strong id="statPrinted">0</strong></div>
+      <div class="stat-card"><span>Due at pickup</span><strong id="statSales">$0</strong></div>
     </section>
 
     <div class="staff-grid">
@@ -68,10 +68,13 @@
 
       <section class="orders-panel" aria-labelledby="ordersHeading">
         <div class="orders-head">
-          <h2 id="ordersHeading">Order queue</h2>
+          <div>
+            <h2 id="ordersHeading">Pickup requests</h2>
+            <p class="fine-print">Accepting opens a kitchen ticket. Payment stays at the counter.</p>
+          </div>
           <div class="order-filters">
-            <button class="filter-button" type="button" data-filter="Open" aria-pressed="true">Open</button>
-            <button class="filter-button" type="button" data-filter="Completed" aria-pressed="false">Completed</button>
+            <button class="filter-button" type="button" data-filter="New" aria-pressed="true">Waiting</button>
+            <button class="filter-button" type="button" data-filter="Accepted" aria-pressed="false">Accepted</button>
             <button class="filter-button" type="button" data-filter="All" aria-pressed="false">All</button>
           </div>
         </div>
@@ -80,9 +83,9 @@
     </div>
   </main>
 
+  <section class="print-ticket" id="printTicket" aria-hidden="true"></section>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="demo-data.js"></script>
   <script src="staff-demo.js"></script>
 </body>
 </html>
-

@@ -6,11 +6,12 @@ without changing the original Jigsy website concept or its live deployment.
 ## Demo routes
 
 - `index.html` — existing concept site with links into the isolated demo
-- `order-demo.html` — customer pickup menu, modifiers, cart, and simulated checkout
-- `staff-demo.html` — order queue, prep time, pause, sold-out, and status controls
+- `order-demo.html` — customer pickup menu, modifiers, and a pay-at-pickup request
+- `staff-demo.html` — one-step accept-and-print queue, prep time, pause, and sold-out controls
 
 All orders and settings use browser-local storage. No payment information is
-requested, no backend is connected, and nothing reaches the restaurant.
+requested, no backend is connected, and nothing reaches the restaurant. The
+demo print action opens the normal system print dialog with a kitchen ticket.
 
 A redesign concept / practice template for **Jigsy's Brewpub & Restaurant**
 (Old Forge–style pizza, Enola, PA). Single self-contained `index.html` plus a

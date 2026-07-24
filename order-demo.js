@@ -290,8 +290,8 @@
     renderCart();
     closeDialog(checkoutDialog);
     document.getElementById("successCopy").textContent =
-      "Simulated order " + id + " is queued for pickup in about " + order.pickupMinutes +
-      " minutes. Open the staff console to accept it, change prep status, or mark it ready.";
+      "Pickup request " + id + " is waiting in the staff console. Jigsy's would accept it, print the kitchen ticket, and collect " +
+      demo.money(order.totals.total) + " at pickup.";
     openDialog(successDialog);
   });
 
@@ -326,4 +326,3 @@
   renderServiceState();
   renderCart();
 })();
-
