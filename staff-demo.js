@@ -42,6 +42,44 @@
     renderAvailability(settings);
   }
 
+  function shortIdentifier(value) {
+    if (!value) return "—";
+    if (value.length <= 14) return value;
+    return value.slice(0, 7) + "…" + value.slice(-5);
+  }
+
+  function renderSquareStatus(status) {
+    var connected = Boolean(status && status.connected);
+    var configured = Boolean(status && status.configured);
+    var badge = document.getElementById("squareStatusBadge");
+    var title = document.getElementById("squareStatusTitle");
+    var copy = document.getElementById("squareStatusCopy");
+    var details = document.getElementById("squareDetails");
+    var connect = document.getElementById("connectSquare");
+    var disconnect = document.getElementById("disconnectSquare");
+
+    badge.textContent = connected ? "Connected" : (configured ? "Ready to connect" : "Setup needed");
+    badge.classList.toggle("is-connected", connected);
+    title.textContent = connected
+      ? "Square Sandbox is connected"
+      : (configured ? "Authorize a Square test business" : "Square Sandbox needs site configuration");
+    copy.textContent = connected
+      ? "The website can securely identify the test merchant and location. Payment processing is still off."
+      : (configured
+          ? "You will sign in on Square’s own page and choose the sandbox test business. WiSense never sees the Square password."
+          : "The protected Square application values are missing from this deployment.");
+    details.hidden = !connected;
+    connect.hidden = connected || !configured;
+    disconnect.hidden = !connected;
+    if (connected) {
+      document.getElementById("squareLocation").textContent = status.locationName || "Square test location";
+      document.getElementById("squareMerchant").textContent = shortIdentifier(status.merchantId);
+      document.getElementById("squareExpires").textContent = status.expiresAt
+        ? new Date(status.expiresAt).toLocaleDateString()
+        : "Not provided";
+    }
+  }
+
   function renderAvailability(settings) {
     var categories = Array.from(new Set(demo.products.map(function (product) { return product.category; })));
     if (categories.indexOf(activeAvailabilityCategory) === -1) activeAvailabilityCategory = categories[0];
@@ -207,12 +245,15 @@
     var showOrders = view === "orders";
     var showMenu = view === "menu";
     var showReport = view === "report";
+    var showPayments = view === "payments";
     document.getElementById("ordersView").hidden = !showOrders;
     document.getElementById("menuView").hidden = !showMenu;
     document.getElementById("reportView").hidden = !showReport;
+    document.getElementById("paymentsView").hidden = !showPayments;
     document.getElementById("ordersTab").setAttribute("aria-selected", String(showOrders));
     document.getElementById("menuTab").setAttribute("aria-selected", String(showMenu));
     document.getElementById("reportTab").setAttribute("aria-selected", String(showReport));
+    document.getElementById("paymentsTab").setAttribute("aria-selected", String(showPayments));
   }
 
   function reportMarkup(orders) {
@@ -453,6 +494,36 @@
   document.getElementById("ordersTab").addEventListener("click", function () { showStaffView("orders"); });
   document.getElementById("menuTab").addEventListener("click", function () { showStaffView("menu"); });
   document.getElementById("reportTab").addEventListener("click", function () { showStaffView("report"); });
+  document.getElementById("paymentsTab").addEventListener("click", function () { showStaffView("payments"); });
+  document.getElementById("connectSquare").addEventListener("click", async function (event) {
+    var button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = "Opening Square…";
+    try {
+      var result = await api.beginSquareConnect();
+      window.location.assign(result.authorizeUrl);
+    } catch (error) {
+      handleStaffError(error);
+      button.disabled = false;
+      button.textContent = "Connect Square Sandbox";
+    }
+  });
+  document.getElementById("disconnectSquare").addEventListener("click", async function (event) {
+    if (!window.confirm("Disconnect this Square Sandbox test account? Customer payment will remain set to pay at pickup.")) return;
+    var button = event.currentTarget;
+    button.disabled = true;
+    try {
+      var result = await api.disconnectSquare();
+      renderSquareStatus(result.status);
+      await api.loadStaffSettings();
+      renderControls();
+      showToast("Square Sandbox disconnected.");
+    } catch (error) {
+      handleStaffError(error);
+    } finally {
+      button.disabled = false;
+    }
+  });
   document.getElementById("reportDate").addEventListener("change", function (event) {
     selectedReportDay = event.target.value;
     renderReport(ordersCache);
@@ -504,7 +575,18 @@
       await api.staffSession();
       authenticated = true;
       document.getElementById("staffAuth").hidden = true;
-      await refreshStaffData(true);
+      var squareResult = await Promise.all([refreshStaffData(true), api.loadSquareStatus()]);
+      renderSquareStatus(squareResult[1]);
+      var squareQuery = new URLSearchParams(window.location.search);
+      if (squareQuery.get("square") === "connected") {
+        showStaffView("payments");
+        showToast("Square Sandbox connected.");
+        window.history.replaceState({}, "", window.location.pathname);
+      } else if (squareQuery.get("square") === "error") {
+        showStaffView("payments");
+        showToast(squareQuery.get("message") || "Square could not be connected.");
+        window.history.replaceState({}, "", window.location.pathname);
+      }
     } catch {
       showAuth("");
     }

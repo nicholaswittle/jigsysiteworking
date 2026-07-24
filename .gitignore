@@ -5,4 +5,6 @@ dist/
 public/
 .wrangler/
 .env*
+!.env.example
 *.tgz
+*.tsbuildinfo

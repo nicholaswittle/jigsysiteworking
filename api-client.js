@@ -76,6 +76,15 @@
         method: "PATCH",
         body: JSON.stringify({ action: action })
       })).order;
+    },
+    async loadSquareStatus() {
+      return (await request("/api/staff/square/status")).status;
+    },
+    async beginSquareConnect() {
+      return request("/api/staff/square/connect");
+    },
+    async disconnectSquare() {
+      return request("/api/staff/square/disconnect", { method: "POST", body: "{}" });
     }
   };
 })();

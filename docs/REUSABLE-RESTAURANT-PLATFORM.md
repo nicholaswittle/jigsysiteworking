@@ -14,6 +14,7 @@ Jigsy's as its first configuration.
 - Waiting, accepted, rejected, completed, and cancelled order states
 - Kitchen ticket and daily receipt-width report printing
 - Manual pay-at-pickup mode
+- Square Sandbox OAuth, encrypted tokens, location display, and disconnect
 - Square-ready payment mode and payment-status fields
 - Daily and monthly per-order fee reporting
 - Foreground browser notifications and audible new-order alert
@@ -36,15 +37,17 @@ The following must become setup data rather than new application code:
 - Online ordering starts paused.
 - Payments default to manual collection at pickup.
 - A completed/paid order, not merely an accepted order, earns the WiSense fee.
-- Square connection is represented in the data model but cannot be turned on
-  until the owner completes Square authorization.
+- A Square Sandbox test business can be connected without activating card
+  checkout. Payment mode remains manual until the separate checkout flow passes
+  end-to-end Sandbox testing.
 
 ## Next reusable-platform upgrades
 
 1. Move the Jigsy's menu from the client file into a database-backed restaurant
    catalog.
 2. Add an owner setup screen for branding, hours, fees, and menu import.
-3. Add Square OAuth and location selection.
+3. Add a deliberate Square location chooser when an account has multiple active
+   locations.
 4. Validate all prices and taxes on the server from the connected Square
    catalog.
 5. Add delayed payment capture: accept completes payment, reject cancels it.

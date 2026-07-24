@@ -6,6 +6,20 @@ export const settings = sqliteTable("restaurant_settings", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const squareConnections = sqliteTable("square_connections", {
+  restaurantId: text("restaurant_id").primaryKey(),
+  environment: text("environment").notNull(),
+  merchantId: text("merchant_id").notNull(),
+  locationId: text("location_id").notNull(),
+  locationName: text("location_name").notNull(),
+  accessTokenEncrypted: text("access_token_encrypted").notNull(),
+  refreshTokenEncrypted: text("refresh_token_encrypted").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  scopesJson: text("scopes_json").notNull(),
+  connectedAt: text("connected_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const orders = sqliteTable(
   "orders",
   {

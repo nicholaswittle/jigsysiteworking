@@ -9,7 +9,7 @@ with Jigsy's as the first restaurant configuration.
 - `order-demo.html` — customer pickup menu, modifiers, and shared order status
 - `staff-demo.html` — protected accept, reject, complete, and print queue; automatic daily rollover;
   printable daily reports; pickup-estimate, pause, and categorized full-menu
-  availability controls
+  availability controls; Square Sandbox connection status
 
 Orders and restaurant settings use a hosted shared database. Customer and staff
 devices see the same order queue, pause state, pickup estimate, and item
@@ -36,13 +36,15 @@ state.
 
 The current payment mode is deliberately **manual / pay at pickup**. Only
 orders staff marks paid and completed count toward the $0.99 WiSense fee.
-Square fields are present in the backend, but live Square payments remain
-disabled until an owner completes OAuth authorization and the payment flow is
-tested.
+The staff Payments tab can connect a Square Sandbox test business through
+OAuth. Tokens stay server-side and are encrypted in the database. Connecting a
+test account does not enable customer card checkout; that remains a separate
+Sandbox milestone.
 
 See `docs/PRINTER-AND-ORDER-FLOW.md` for the proposed two-screen production
 architecture and receipt-printer options. See
-`docs/REUSABLE-RESTAURANT-PLATFORM.md` for the reusable product direction.
+`docs/REUSABLE-RESTAURANT-PLATFORM.md` for the reusable product direction and
+`docs/SQUARE-SANDBOX.md` for the practice authorization flow.
 
 A redesign concept / practice template for **Jigsy's Brewpub & Restaurant**
 (Old Forge–style pizza, Enola, PA). Single self-contained `index.html` plus a

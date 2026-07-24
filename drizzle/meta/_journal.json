@@ -8,6 +8,13 @@
       "when": 1784914878361,
       "tag": "0000_heavy_penance",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784916114666,
+      "tag": "0001_bitter_magneto",
+      "breakpoints": true
     }
   ]
 }

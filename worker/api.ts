@@ -2,12 +2,27 @@ import menuCatalog from "../config/menu-catalog.json";
 
 const RESTAURANT_ID = "jigsys";
 const SESSION_COOKIE = "wisense_staff_session";
+const SQUARE_STATE_COOKIE = "wisense_square_oauth";
 const SESSION_SECONDS = 12 * 60 * 60;
+const SQUARE_API_VERSION = "2026-01-22";
+const SQUARE_SCOPES = [
+  "MERCHANT_PROFILE_READ",
+  "ITEMS_READ",
+  "ORDERS_READ",
+  "ORDERS_WRITE",
+  "PAYMENTS_READ",
+  "PAYMENTS_WRITE",
+];
 
 export interface OrderingEnv {
   DB: D1Database;
   STAFF_PIN?: string;
   STAFF_SESSION_SECRET?: string;
+  SQUARE_ENV?: string;
+  SQUARE_APPLICATION_ID?: string;
+  SQUARE_APPLICATION_SECRET?: string;
+  SQUARE_TOKEN_ENCRYPTION_KEY?: string;
+  SQUARE_REDIRECT_URI?: string;
 }
 
 type RestaurantSettings = {
@@ -61,6 +76,20 @@ type StoredOrderRow = {
   total_cents: number;
   payment_mode: string;
   payment_status: string;
+};
+
+type SquareConnectionRow = {
+  restaurant_id: string;
+  environment: string;
+  merchant_id: string;
+  location_id: string;
+  location_name: string;
+  access_token_encrypted: string;
+  refresh_token_encrypted: string;
+  expires_at: string;
+  scopes_json: string;
+  connected_at: string;
+  updated_at: string;
 };
 
 const DEFAULT_SETTINGS: RestaurantSettings = {
@@ -155,6 +184,11 @@ function base64Url(bytes: ArrayBuffer) {
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
+function base64UrlBytes(value: string) {
+  const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+}
+
 async function hmac(value: string, secret: string) {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -165,6 +199,51 @@ async function hmac(value: string, secret: string) {
     ["sign"],
   );
   return base64Url(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
+}
+
+function squareConfigured(env: OrderingEnv) {
+  return Boolean(
+    env.SQUARE_APPLICATION_ID
+    && env.SQUARE_APPLICATION_SECRET
+    && env.SQUARE_TOKEN_ENCRYPTION_KEY
+    && env.SQUARE_REDIRECT_URI,
+  );
+}
+
+function squareBaseUrl(env: OrderingEnv) {
+  return env.SQUARE_ENV === "production"
+    ? "https://connect.squareup.com"
+    : "https://connect.squareupsandbox.com";
+}
+
+async function squareEncryptionKey(env: OrderingEnv) {
+  const raw = env.SQUARE_TOKEN_ENCRYPTION_KEY ?? "";
+  const bytes = /^[a-f0-9]{64}$/i.test(raw)
+    ? Uint8Array.from(raw.match(/.{2}/g) ?? [], (pair) => Number.parseInt(pair, 16))
+    : new TextEncoder().encode(raw);
+  const digest = bytes.length === 32 ? bytes : new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+async function encryptSquareToken(value: string, env: OrderingEnv) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    await squareEncryptionKey(env),
+    new TextEncoder().encode(value),
+  );
+  return `${base64Url(iv.buffer)}.${base64Url(encrypted)}`;
+}
+
+async function decryptSquareToken(value: string, env: OrderingEnv) {
+  const [ivValue, encryptedValue] = value.split(".");
+  if (!ivValue || !encryptedValue) throw new Error("Stored Square token is invalid.");
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: base64UrlBytes(ivValue) },
+    await squareEncryptionKey(env),
+    base64UrlBytes(encryptedValue),
+  );
+  return new TextDecoder().decode(decrypted);
 }
 
 function constantTimeEqual(left: string, right: string) {
@@ -233,6 +312,21 @@ async function ensureSchema(env: OrderingEnv) {
         total_cents INTEGER NOT NULL,
         payment_mode TEXT NOT NULL,
         payment_status TEXT NOT NULL
+      )
+    `),
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS square_connections (
+        restaurant_id TEXT PRIMARY KEY,
+        environment TEXT NOT NULL,
+        merchant_id TEXT NOT NULL,
+        location_id TEXT NOT NULL,
+        location_name TEXT NOT NULL,
+        access_token_encrypted TEXT NOT NULL,
+        refresh_token_encrypted TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        scopes_json TEXT NOT NULL,
+        connected_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       )
     `),
     env.DB.prepare(
@@ -546,6 +640,194 @@ async function updateSettings(request: Request, env: OrderingEnv) {
   return json({ settings: publicSettings(next) });
 }
 
+async function getSquareConnection(env: OrderingEnv) {
+  await ensureSchema(env);
+  return env.DB.prepare(
+    "SELECT * FROM square_connections WHERE restaurant_id = ?",
+  ).bind(RESTAURANT_ID).first<SquareConnectionRow>();
+}
+
+function squareStatus(connection: SquareConnectionRow | null, env: OrderingEnv) {
+  let scopes: string[] = [];
+  if (connection) {
+    try {
+      const parsed = JSON.parse(connection.scopes_json);
+      scopes = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      scopes = [];
+    }
+  }
+  return {
+    configured: squareConfigured(env),
+    connected: Boolean(connection),
+    environment: env.SQUARE_ENV === "production" ? "production" : "sandbox",
+    merchantId: connection?.merchant_id ?? null,
+    locationId: connection?.location_id ?? null,
+    locationName: connection?.location_name ?? null,
+    expiresAt: connection?.expires_at ?? null,
+    scopes,
+  };
+}
+
+async function beginSquareConnect(request: Request, env: OrderingEnv) {
+  if (!squareConfigured(env)) {
+    return json({ error: "Square Sandbox has not been configured on this site yet." }, 503);
+  }
+  const nonce = randomToken();
+  const state = `${nonce}.${await hmac(`${RESTAURANT_ID}.${nonce}`, sessionSecret(env))}`;
+  const authorizeUrl = new URL(`${squareBaseUrl(env)}/oauth2/authorize`);
+  authorizeUrl.searchParams.set("client_id", env.SQUARE_APPLICATION_ID!);
+  authorizeUrl.searchParams.set("scope", SQUARE_SCOPES.join(" "));
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("session", "false");
+  authorizeUrl.searchParams.set("redirect_uri", env.SQUARE_REDIRECT_URI!);
+  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+  return json(
+    { authorizeUrl: authorizeUrl.toString() },
+    200,
+    {
+      "set-cookie": `${SQUARE_STATE_COOKIE}=${encodeURIComponent(state)}; Path=/api/square/oauth/callback; HttpOnly; SameSite=Lax; Max-Age=600${secure}`,
+    },
+  );
+}
+
+function squareCallbackRedirect(request: Request, result: "connected" | "error", message = "") {
+  const target = new URL("/staff-demo.html", request.url);
+  target.searchParams.set("square", result);
+  if (message) target.searchParams.set("message", cleanText(message, 140));
+  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location: target.toString(),
+      "cache-control": "no-store",
+      "set-cookie": `${SQUARE_STATE_COOKIE}=; Path=/api/square/oauth/callback; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
+    },
+  });
+}
+
+async function completeSquareConnect(request: Request, url: URL, env: OrderingEnv) {
+  if (!squareConfigured(env)) return squareCallbackRedirect(request, "error", "Square is not configured.");
+  const returnedState = url.searchParams.get("state") ?? "";
+  const storedState = cookieValue(request, SQUARE_STATE_COOKIE);
+  if (!returnedState || !storedState || !constantTimeEqual(returnedState, storedState)) {
+    return squareCallbackRedirect(request, "error", "The Square connection request expired. Try again.");
+  }
+  if (url.searchParams.get("error")) {
+    return squareCallbackRedirect(request, "error", "Square authorization was cancelled.");
+  }
+  const code = url.searchParams.get("code") ?? "";
+  if (!code) return squareCallbackRedirect(request, "error", "Square did not return an authorization code.");
+
+  const tokenResponse = await fetch(`${squareBaseUrl(env)}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "Square-Version": SQUARE_API_VERSION,
+    },
+    body: JSON.stringify({
+      client_id: env.SQUARE_APPLICATION_ID,
+      client_secret: env.SQUARE_APPLICATION_SECRET,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: env.SQUARE_REDIRECT_URI,
+    }),
+  });
+  const tokenData = await tokenResponse.json() as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_at?: string;
+    merchant_id?: string;
+    scope?: string;
+    message?: string;
+  };
+  if (!tokenResponse.ok || !tokenData.access_token || !tokenData.refresh_token || !tokenData.merchant_id) {
+    console.error("Square token exchange failed", tokenResponse.status, tokenData.message ?? "unknown error");
+    return squareCallbackRedirect(request, "error", "Square could not finish the connection.");
+  }
+
+  const locationsResponse = await fetch(`${squareBaseUrl(env)}/v2/locations`, {
+    headers: {
+      authorization: `Bearer ${tokenData.access_token}`,
+      "Square-Version": SQUARE_API_VERSION,
+    },
+  });
+  const locationsData = await locationsResponse.json() as {
+    locations?: Array<{ id?: string; name?: string; status?: string }>;
+  };
+  const locations = locationsData.locations ?? [];
+  const location = locations.find((item) => item.status === "ACTIVE") ?? locations[0];
+  if (!locationsResponse.ok || !location?.id) {
+    return squareCallbackRedirect(request, "error", "Square connected, but no restaurant location was available.");
+  }
+
+  const now = new Date().toISOString();
+  const expiresAt = tokenData.expires_at ?? new Date(Date.now() + 29 * 24 * 60 * 60 * 1000).toISOString();
+  const scopes = (tokenData.scope ?? SQUARE_SCOPES.join(" ")).split(/\s+/).filter(Boolean);
+  await ensureSchema(env);
+  await env.DB.prepare(`
+    INSERT INTO square_connections (
+      restaurant_id, environment, merchant_id, location_id, location_name,
+      access_token_encrypted, refresh_token_encrypted, expires_at,
+      scopes_json, connected_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(restaurant_id) DO UPDATE SET
+      environment = excluded.environment,
+      merchant_id = excluded.merchant_id,
+      location_id = excluded.location_id,
+      location_name = excluded.location_name,
+      access_token_encrypted = excluded.access_token_encrypted,
+      refresh_token_encrypted = excluded.refresh_token_encrypted,
+      expires_at = excluded.expires_at,
+      scopes_json = excluded.scopes_json,
+      updated_at = excluded.updated_at
+  `).bind(
+    RESTAURANT_ID,
+    env.SQUARE_ENV === "production" ? "production" : "sandbox",
+    tokenData.merchant_id,
+    location.id,
+    cleanText(location.name || "Square location", 160),
+    await encryptSquareToken(tokenData.access_token, env),
+    await encryptSquareToken(tokenData.refresh_token, env),
+    expiresAt,
+    JSON.stringify(scopes),
+    now,
+    now,
+  ).run();
+  const settings = await getSettings(env);
+  await saveSettings(env, { ...settings, squareConnected: true, paymentMode: "manual" });
+  return squareCallbackRedirect(request, "connected");
+}
+
+async function disconnectSquare(env: OrderingEnv) {
+  const connection = await getSquareConnection(env);
+  if (connection && squareConfigured(env)) {
+    try {
+      const token = await decryptSquareToken(connection.access_token_encrypted, env);
+      await fetch(`${squareBaseUrl(env)}/oauth2/revoke`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Client ${env.SQUARE_APPLICATION_SECRET}`,
+          "Square-Version": SQUARE_API_VERSION,
+        },
+        body: JSON.stringify({
+          client_id: env.SQUARE_APPLICATION_ID,
+          access_token: token,
+          revoke_only_access_token: false,
+        }),
+      });
+    } catch (error) {
+      console.warn("Square token revoke did not complete; removing the local connection.", error);
+    }
+  }
+  await ensureSchema(env);
+  await env.DB.prepare("DELETE FROM square_connections WHERE restaurant_id = ?").bind(RESTAURANT_ID).run();
+  const settings = await getSettings(env);
+  await saveSettings(env, { ...settings, squareConnected: false, paymentMode: "manual" });
+  return json({ ok: true, status: squareStatus(null, env) });
+}
+
 export async function handleOrderingApi(request: Request, env: OrderingEnv): Promise<Response> {
   const url = new URL(request.url);
   if (!validSameOrigin(request)) return json({ error: "Cross-site request blocked." }, 403);
@@ -557,6 +839,9 @@ export async function handleOrderingApi(request: Request, env: OrderingEnv): Pro
     }
     if (url.pathname === "/api/public/settings" && request.method === "GET") {
       return json({ settings: publicSettings(await getSettings(env)) });
+    }
+    if (url.pathname === "/api/square/oauth/callback" && request.method === "GET") {
+      return completeSquareConnect(request, url, env);
     }
     if (url.pathname === "/api/orders" && request.method === "POST") {
       return createOrder(request, env);
@@ -585,6 +870,15 @@ export async function handleOrderingApi(request: Request, env: OrderingEnv): Pro
       }
       if (url.pathname === "/api/staff/settings" && request.method === "PATCH") {
         return updateSettings(request, env);
+      }
+      if (url.pathname === "/api/staff/square/status" && request.method === "GET") {
+        return json({ status: squareStatus(await getSquareConnection(env), env) });
+      }
+      if (url.pathname === "/api/staff/square/connect" && request.method === "GET") {
+        return beginSquareConnect(request, env);
+      }
+      if (url.pathname === "/api/staff/square/disconnect" && request.method === "POST") {
+        return disconnectSquare(env);
       }
       const staffOrderMatch = url.pathname.match(/^\/api\/staff\/orders\/([^/]+)$/);
       if (staffOrderMatch && request.method === "PATCH") {

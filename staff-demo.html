@@ -43,6 +43,7 @@
       <button class="staff-tab" id="ordersTab" type="button" role="tab" aria-selected="true" aria-controls="ordersView">Orders</button>
       <button class="staff-tab" id="menuTab" type="button" role="tab" aria-selected="false" aria-controls="menuView">Menu availability</button>
       <button class="staff-tab" id="reportTab" type="button" role="tab" aria-selected="false" aria-controls="reportView">Daily report</button>
+      <button class="staff-tab" id="paymentsTab" type="button" role="tab" aria-selected="false" aria-controls="paymentsView">Payments</button>
     </div>
 
     <div class="staff-grid" id="ordersView" role="tabpanel" aria-labelledby="ordersTab">
@@ -143,6 +144,37 @@
         </table>
       </div>
       <p class="report-note">Only completed and paid orders earn the $0.99 fee. Rejected, cancelled, and waiting orders remain in the permanent daily record with a $0.00 fee.</p>
+    </section>
+
+    <section class="payments-panel" id="paymentsView" role="tabpanel" aria-labelledby="paymentsTab" hidden>
+      <div class="payments-head">
+        <div>
+          <p class="eyebrow">Practice connection</p>
+          <h2>Square Sandbox</h2>
+          <p class="fine-print">Connect a Square test business without using real customer cards or moving real money.</p>
+        </div>
+        <span class="square-environment">Sandbox · test only</span>
+      </div>
+      <div class="square-card">
+        <div>
+          <span class="square-status" id="squareStatusBadge">Checking…</span>
+          <h3 id="squareStatusTitle">Checking the Square connection</h3>
+          <p id="squareStatusCopy">The staff console is checking the protected connection.</p>
+          <dl class="square-details" id="squareDetails" hidden>
+            <div><dt>Square location</dt><dd id="squareLocation">—</dd></div>
+            <div><dt>Merchant ID</dt><dd id="squareMerchant">—</dd></div>
+            <div><dt>Connection expires</dt><dd id="squareExpires">—</dd></div>
+          </dl>
+        </div>
+        <div class="square-actions">
+          <button class="primary-button" id="connectSquare" type="button">Connect Square Sandbox</button>
+          <button class="secondary-button" id="disconnectSquare" type="button" hidden>Disconnect test account</button>
+        </div>
+      </div>
+      <div class="sandbox-note">
+        <strong>What this step does</strong>
+        <p>It securely authorizes this website to see the selected test location and prepares the app for a later fake-card checkout test. Customer checkout still says “pay at pickup,” and Square payment processing stays off until that separate step is built and verified.</p>
+      </div>
     </section>
   </main>
 
