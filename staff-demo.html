@@ -39,6 +39,7 @@
 
     <div class="staff-tabs" role="tablist" aria-label="Staff console views">
       <button class="staff-tab" id="ordersTab" type="button" role="tab" aria-selected="true" aria-controls="ordersView">Orders</button>
+      <button class="staff-tab" id="menuTab" type="button" role="tab" aria-selected="false" aria-controls="menuView">Menu availability</button>
       <button class="staff-tab" id="reportTab" type="button" role="tab" aria-selected="false" aria-controls="reportView">Daily report</button>
     </div>
 
@@ -54,17 +55,14 @@
           </div>
         </section>
         <section class="panel-section">
-          <h2>Pickup prep time</h2>
+          <h2>Customer pickup estimate</h2>
+          <p class="fine-print">Sets the earliest “ready in about…” option shown on new requests. It is not a countdown or time limit.</p>
           <div class="stepper">
             <button id="prepDown" type="button" aria-label="Reduce prep time">−</button>
             <output id="prepOutput">25 min</output>
             <button id="prepUp" type="button" aria-label="Increase prep time">+</button>
           </div>
-        </section>
-        <section class="panel-section">
-          <h2>Item availability</h2>
-          <p class="fine-print">Mark an item sold out; it becomes unavailable on the customer menu.</p>
-          <div class="sold-out-list" id="soldOutList"></div>
+          <p class="fine-print prep-range">Adjustable from 10 to 90 minutes in 5-minute steps.</p>
         </section>
         <section class="panel-section">
           <button class="danger-button full-button" id="resetDemo" type="button">Reset all demo data</button>
@@ -87,6 +85,18 @@
         <div class="order-list" id="orderList"></div>
       </section>
     </div>
+
+    <section class="availability-panel" id="menuView" role="tabpanel" aria-labelledby="menuTab" hidden>
+      <div class="availability-head">
+        <div>
+          <p class="eyebrow">Ordering controls</p>
+          <h2>Menu availability</h2>
+          <p class="fine-print">Tap any item to switch online ordering on or off. Sold-out items remain visible to customers but cannot be added.</p>
+        </div>
+        <div class="availability-count" id="availabilityCount">0 available</div>
+      </div>
+      <div class="availability-groups" id="menuAvailability"></div>
+    </section>
 
     <section class="report-panel" id="reportView" role="tabpanel" aria-labelledby="reportTab" hidden>
       <div class="report-head">
@@ -134,6 +144,7 @@
 
   <section class="print-ticket" id="printTicket" aria-hidden="true"></section>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <footer class="demo-credit">Created by <a href="https://www.wisensellc.com" target="_blank" rel="noopener">WiSense LLC</a></footer>
   <script src="demo-data.js"></script>
   <script src="staff-demo.js"></script>
 </body>

@@ -26,11 +26,27 @@
     var pause = document.getElementById("pauseToggle");
     pause.setAttribute("aria-checked", String(settings.paused));
     document.getElementById("prepOutput").textContent = settings.prepMinutes + " min";
-    document.getElementById("soldOutList").innerHTML = demo.products.slice(0, 8).map(function (product) {
-      var sold = settings.soldOut.indexOf(product.id) !== -1;
-      return '<div class="sold-row"><span>' + demo.escapeHTML(product.name) + '</span>' +
-        '<button type="button" data-sold="' + product.id + '" class="' + (sold ? "is-sold" : "") + '">' +
-        (sold ? "Sold out" : "Available") + "</button></div>";
+    renderAvailability(settings);
+  }
+
+  function renderAvailability(settings) {
+    var categories = Array.from(new Set(demo.products.map(function (product) { return product.category; })));
+    var available = demo.products.filter(function (product) {
+      return settings.soldOut.indexOf(product.id) === -1;
+    }).length;
+    document.getElementById("availabilityCount").textContent =
+      available + " of " + demo.products.length + " available";
+    document.getElementById("menuAvailability").innerHTML = categories.map(function (category) {
+      var items = demo.products.filter(function (product) { return product.category === category; });
+      return '<section class="availability-group"><h3>' + demo.escapeHTML(category) + '</h3><div class="availability-grid">' +
+        items.map(function (product) {
+          var sold = settings.soldOut.indexOf(product.id) !== -1;
+          return '<button type="button" data-sold="' + product.id + '" class="availability-item' +
+            (sold ? " is-sold" : "") + '" aria-pressed="' + String(sold) + '">' +
+            '<span><strong>' + demo.escapeHTML(product.name) + '</strong><small>' +
+            demo.escapeHTML(product.description) + '</small></span><b>' +
+            (sold ? "Ordering off" : "Available") + "</b></button>";
+        }).join("") + "</div></section>";
     }).join("");
   }
 
@@ -158,10 +174,14 @@
   }
 
   function showStaffView(view) {
+    var showOrders = view === "orders";
+    var showMenu = view === "menu";
     var showReport = view === "report";
-    document.getElementById("ordersView").hidden = showReport;
+    document.getElementById("ordersView").hidden = !showOrders;
+    document.getElementById("menuView").hidden = !showMenu;
     document.getElementById("reportView").hidden = !showReport;
-    document.getElementById("ordersTab").setAttribute("aria-selected", String(!showReport));
+    document.getElementById("ordersTab").setAttribute("aria-selected", String(showOrders));
+    document.getElementById("menuTab").setAttribute("aria-selected", String(showMenu));
     document.getElementById("reportTab").setAttribute("aria-selected", String(showReport));
   }
 
@@ -314,7 +334,7 @@
   document.getElementById("prepUp").addEventListener("click", function () {
     updateSettings({ prepMinutes: Math.min(90, demo.settings().prepMinutes + 5) });
   });
-  document.getElementById("soldOutList").addEventListener("click", function (event) {
+  document.getElementById("menuAvailability").addEventListener("click", function (event) {
     var button = event.target.closest("[data-sold]");
     if (!button) return;
     var id = button.getAttribute("data-sold");
@@ -342,6 +362,7 @@
   });
   document.getElementById("seedOrders").addEventListener("click", seedOrders);
   document.getElementById("ordersTab").addEventListener("click", function () { showStaffView("orders"); });
+  document.getElementById("menuTab").addEventListener("click", function () { showStaffView("menu"); });
   document.getElementById("reportTab").addEventListener("click", function () { showStaffView("report"); });
   document.getElementById("reportDate").addEventListener("change", function (event) {
     selectedReportDay = event.target.value;

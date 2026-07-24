@@ -11,6 +11,12 @@ The finished system has two web views backed by the same online order database:
    ordering, and provides **Accept & Print** and **Reject** actions. Rejected
    requests remain in the daily record and do not incur the 99-cent fee.
 
+The staff pickup estimate sets the earliest “ready in about…” option offered to
+customers on new requests. It can be adjusted from 10 to 90 minutes; it is not
+a countdown, expiration, or automatic cancellation. The separate menu
+availability tab includes every item in the online ordering menu so staff can
+turn ordering off for sold-out items.
+
 The current concept demo uses browser-local storage, so its two views only share
 orders inside the same browser. A real pilot must replace that local storage
 with a hosted database and add staff authentication.

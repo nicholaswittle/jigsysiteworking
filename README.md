@@ -8,7 +8,8 @@ without changing the original Jigsy website concept or its live deployment.
 - `index.html` — existing concept site with links into the isolated demo
 - `order-demo.html` — customer pickup menu, modifiers, and a pay-at-pickup request
 - `staff-demo.html` — accept, reject, and print queue; automatic daily rollover;
-  printable daily reports; prep time, pause, and sold-out controls
+  printable daily reports; pickup-estimate, pause, and full-menu availability
+  controls
 
 All orders and settings use browser-local storage. No payment information is
 requested, no backend is connected, and nothing reaches the restaurant. The

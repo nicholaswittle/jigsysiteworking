@@ -341,17 +341,13 @@ h1 {
 .stepper { display: flex; align-items: center; gap: 8px; }
 .stepper button { width: 34px; height: 34px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
 .stepper output { min-width: 72px; text-align: center; font: 850 .85rem/1 var(--display); }
-.sold-out-list { display: grid; gap: 7px; }
-.sold-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: .86rem; }
-.sold-row:last-child { border-bottom: 0; }
-.sold-row button { border: 1px solid var(--line); background: var(--surface-2); padding: 6px 8px; cursor: pointer; font: 750 .68rem/1 var(--display); }
-.sold-row button.is-sold { background: #f1d6d1; color: #7b241b; }
+.prep-range { margin-top: 9px; }
 
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
 .stat-card { padding: 14px 16px; }
 .stat-card span { display: block; color: var(--muted); font: 750 .67rem/1 var(--display); text-transform: uppercase; letter-spacing: .08em; }
 .stat-card strong { display: block; margin-top: 7px; font: 900 1.5rem/1 var(--display); }
-.staff-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.staff-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .staff-tab { border: 1px solid var(--line); background: var(--surface); padding: 10px 14px; cursor: pointer; font: 800 .72rem/1 var(--display); }
 .staff-tab[aria-selected="true"] { background: var(--char); color: white; border-color: var(--char); }
 .orders-head { display: flex; justify-content: space-between; gap: 18px; align-items: center; padding: 18px 20px; border-bottom: 1px solid var(--line); }
@@ -376,6 +372,22 @@ h1 {
 .order-actions button { padding: 8px 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: 750 .7rem/1 var(--display); }
 .order-actions button.primary { background: var(--sauce); color: white; border-color: var(--sauce); }
 .order-actions button.reject { color: #7b241b; border-color: #c98d85; }
+
+.availability-panel { border: 1px solid var(--line); background: var(--surface); }
+.availability-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px; border-bottom: 1px solid var(--line); }
+.availability-head h2 { margin: 4px 0 7px; font-size: 1.35rem; }
+.availability-count { flex: 0 0 auto; padding: 9px 12px; background: #dcecdc; color: #285d34; font: 800 .72rem/1 var(--display); }
+.availability-groups { padding: 20px 22px 24px; display: grid; gap: 24px; }
+.availability-group h3 { margin: 0 0 10px; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.availability-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.availability-item { width: 100%; border: 1px solid var(--line); background: var(--paper); padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 18px; text-align: left; cursor: pointer; }
+.availability-item span { min-width: 0; }
+.availability-item strong, .availability-item small { display: block; }
+.availability-item strong { font: 850 .86rem/1.2 var(--display); }
+.availability-item small { margin-top: 5px; color: var(--muted); font-size: .73rem; line-height: 1.35; }
+.availability-item b { flex: 0 0 auto; padding: 7px 8px; background: #dcecdc; color: #285d34; font: 800 .65rem/1 var(--display); text-transform: uppercase; }
+.availability-item.is-sold { background: #f6e8e5; border-color: #d6aaa4; }
+.availability-item.is-sold b { background: #e8c6c1; color: #7b241b; }
 
 .report-panel { border: 1px solid var(--line); background: var(--surface); }
 .report-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px; border-bottom: 1px solid var(--line); }
@@ -414,12 +426,15 @@ h1 {
   box-shadow: var(--shadow); font: 750 .8rem/1.25 var(--display); transition: .2s ease;
 }
 .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+.demo-credit { border-top: 1px solid var(--line); padding: 24px 18px 30px; text-align: center; color: var(--muted); font: 750 .76rem/1.4 var(--display); }
+.demo-credit a { color: var(--sauce); font-weight: 850; }
 
 @media (max-width: 900px) {
   .product-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .staff-grid { grid-template-columns: 1fr; }
   .stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .report-summary { grid-template-columns: 1fr; }
+  .availability-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 620px) {
   .demo-nav { padding-inline: 14px; }
@@ -430,6 +445,8 @@ h1 {
   .order-card-body { grid-template-columns: 1fr; }
   .report-head { align-items: stretch; flex-direction: column; }
   .report-actions { display: grid; }
+  .availability-head { align-items: stretch; flex-direction: column; }
+  .availability-count { align-self: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }

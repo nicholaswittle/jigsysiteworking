@@ -688,33 +688,6 @@
   }
   @media (max-width: 720px) { .signature { grid-template-columns: 1fr; padding: 22px 18px; } }
 
-  /* ---------- Dessert signature ---------- */
-  .dessert {
-    display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: center;
-    background: var(--char-band); color: var(--char-ink);
-    border: 1px solid var(--char-line); border-top: 3px solid var(--crust);
-    padding: 26px 28px; margin: 8px 0 28px;
-  }
-  .dessert .menu-kicker { color: var(--crust-bright); margin-bottom: 6px; }
-  .dessert h3 {
-    font-family: var(--display); font-weight: 800; text-transform: uppercase;
-    letter-spacing: -0.02em; font-size: clamp(1.5rem, 3.2vw, 2rem); margin: 0 0 10px; line-height: 1;
-  }
-  .dessert p { margin: 0 0 12px; color: var(--char-muted); font-size: 1.02rem; line-height: 1.55; max-width: 42ch; }
-  .dessert .ask {
-    font-family: var(--display); font-size: 0.78rem; font-weight: 700;
-    letter-spacing: 0.08em; text-transform: uppercase; color: var(--crust-bright);
-  }
-  .dessert-aside {
-    font-family: var(--display); font-size: 0.95rem; line-height: 1.55;
-    color: var(--char-ink); border-left: 3px solid var(--crust); padding: 4px 0 4px 18px;
-  }
-  .dessert-aside cite {
-    display: block; margin-top: 10px; font-style: normal; font-size: 0.72rem;
-    letter-spacing: 0.1em; text-transform: uppercase; color: var(--char-muted); font-weight: 700;
-  }
-  @media (max-width: 720px) { .dessert { grid-template-columns: 1fr; padding: 22px 18px; } }
-
   /* ---------- Neighborhood voice ---------- */
   .voice { padding: 64px 0 20px; }
   .voice-grid {
@@ -782,6 +755,8 @@
   .footer-col a { display: block; font-family: var(--display); font-size: 0.92rem; text-decoration: none; color: var(--ink); margin-bottom: 8px; }
   .footer-col a:hover { color: var(--sauce); }
   .concept-note { max-width: var(--maxw); margin: 32px auto 0; padding: 14px 24px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.78rem; font-family: var(--display); letter-spacing: 0.02em; }
+  .wisense-credit { max-width: var(--maxw); margin: 18px auto 0; padding: 0 24px; color: var(--muted); font: 700 0.78rem/1.4 var(--display); }
+  .wisense-credit a { color: var(--sauce); font-weight: 850; }
 
   a:focus-visible, button:focus-visible, .btn:focus-visible, .chip:focus-visible {
     outline: 2px solid var(--crust-bright); outline-offset: 3px; border-radius: 2px;
@@ -948,7 +923,7 @@
     <a href="#menu-starters">Starters</a>
     <a href="#menu-salads">Salads</a>
     <a href="#menu-subs">Subs</a>
-    <a href="#peanut-butter-pie">Dessert</a>
+    <a href="#menu-dessert">Dessert</a>
   </nav>
 
   <div class="menu-block scroll-in" id="menu-trays">
@@ -1121,31 +1096,31 @@
       <div class="plate"><span class="name">Soup of the Day</span><span class="price">Cup 5.99 · Bowl 7.99</span><p class="desc">ask your server about our daily special</p></div>
     </div>
     <p class="menu-foot">Drinks — Coke, Diet Coke, Root Beer, Sprite, Raspberry Tea, Unsweetened Tea, Lemonade. Ask about specialty cocktails and the house beer list when you’re in.</p>
-
-    <div class="dessert scroll-in" id="peanut-butter-pie">
-      <div>
-        <p class="menu-kicker">Save room</p>
-        <h3>Peanut Butter Pie</h3>
-        <p>The dessert guests won’t shut up about — rich, cold, and the reason tables linger. Ask for a slice when you call it in or sit down.</p>
-        <span class="ask">Ask when you order · by the slice</span>
-      </div>
-      <aside class="dessert-aside">
-        “Their peanut butter pie should be illegal… it’s THAT good.”
-        <cite>Brian C. · Google</cite>
-      </aside>
-    </div>
-
-    <p class="locals-order">
-      <strong>Locals also order</strong>
-      <a href="#menu-wings">Wings</a><span class="sep">·</span>
-      <a href="#menu-stromboli">Stromboli</a><span class="sep">·</span>
-      <a href="#menu-salads">Antipasto</a><span class="sep">·</span>
-      <a href="#menu-starters">Pierogi</a><span class="sep">·</span>
-      <a href="#menu-trays">Double White</a><span class="sep">·</span>
-      <a href="#peanut-butter-pie">Peanut Butter Pie</a><span class="sep">·</span>
-      <a href="#chick-fil-j">Chick Fil “J”</a>
-    </p>
   </div>
+
+  <div class="menu-block scroll-in" id="menu-dessert">
+    <p class="menu-kicker">Save room</p>
+    <h3>Dessert</h3>
+    <p class="menu-block-desc">Finish with Jigsy’s guest-favorite house dessert.</p>
+    <div class="plate-list">
+      <div class="plate" id="peanut-butter-pie">
+        <span class="name">Peanut Butter Pie</span><span class="price">Ask for today’s price</span>
+        <p class="desc">Rich, cold, and served by the slice. Ask when you order or when you sit down.</p>
+      </div>
+    </div>
+    <p class="menu-foot">Guest note: “Their peanut butter pie should be illegal… it’s THAT good.” — Brian C. · Google</p>
+  </div>
+
+  <p class="locals-order">
+    <strong>Locals also order</strong>
+    <a href="#menu-wings">Wings</a><span class="sep">·</span>
+    <a href="#menu-stromboli">Stromboli</a><span class="sep">·</span>
+    <a href="#menu-salads">Antipasto</a><span class="sep">·</span>
+    <a href="#menu-starters">Pierogi</a><span class="sep">·</span>
+    <a href="#menu-trays">Double White</a><span class="sep">·</span>
+    <a href="#peanut-butter-pie">Peanut Butter Pie</a><span class="sep">·</span>
+    <a href="#chick-fil-j">Chick Fil “J”</a>
+  </p>
 </main>
 
 <section class="wrap voice" id="voice">
@@ -1278,6 +1253,7 @@
     </div>
   </div>
   <p class="concept-note">Independent redesign concept — not the official Jigsy's site. Menu, prices, hours, and contact details are transcribed from Jigsy's published Nov 2025 menu; prices subject to change. Food and lounge photos pulled from public Google guest uploads for this concept demo — swap for owner originals before any client handoff.</p>
+  <p class="wisense-credit">Created by <a href="https://www.wisensellc.com" target="_blank" rel="noopener">WiSense LLC</a></p>
 </footer>
 
 <div class="orderbar" id="orderbar">
