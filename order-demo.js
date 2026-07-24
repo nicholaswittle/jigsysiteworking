@@ -156,6 +156,11 @@
     return { subtotal: subtotal, fee: fee, tax: tax, total: subtotal + fee + tax };
   }
 
+  function unavailableCartItems() {
+    var soldOut = demo.settings().soldOut;
+    return cart.filter(function (item) { return soldOut.indexOf(item.productId) !== -1; });
+  }
+
   function renderCart() {
     document.getElementById("cartCount").textContent = String(cart.length);
     var items = document.getElementById("cartItems");
@@ -163,8 +168,11 @@
       items.innerHTML = '<div class="empty-state"><strong>Your order is empty.</strong><br>Choose a tray, wings, or a starter to begin.</div>';
     } else {
       items.innerHTML = cart.map(function (item, index) {
-        return '<article class="cart-item"><div class="cart-item-top"><div><h3>' + demo.escapeHTML(item.name) + '</h3>' +
-          '<p>' + demo.escapeHTML(item.detail) + '</p></div><strong>' + demo.money(item.price) + '</strong></div>' +
+        var unavailable = demo.settings().soldOut.indexOf(item.productId) !== -1;
+        return '<article class="cart-item' + (unavailable ? " is-unavailable" : "") +
+          '"><div class="cart-item-top"><div><h3>' + demo.escapeHTML(item.name) + '</h3>' +
+          '<p>' + demo.escapeHTML(item.detail) + (unavailable ? " · Sold out — remove to continue" : "") +
+          '</p></div><strong>' + demo.money(item.price) + '</strong></div>' +
           '<button class="remove-link" type="button" data-remove="' + index + '">Remove</button></article>';
       }).join("");
     }
@@ -174,7 +182,8 @@
     document.getElementById("cartTax").textContent = demo.money(t.tax);
     document.getElementById("cartTotal").textContent = demo.money(t.total);
     document.getElementById("checkoutTotal").textContent = demo.money(t.total);
-    document.getElementById("checkoutOpen").disabled = !cart.length || demo.settings().paused;
+    document.getElementById("checkoutOpen").disabled =
+      !cart.length || demo.settings().paused || unavailableCartItems().length > 0;
     demo.write(demo.keys.cart, cart);
   }
 
@@ -252,6 +261,11 @@
 
   document.getElementById("checkoutOpen").addEventListener("click", function () {
     if (!cart.length || demo.settings().paused) return;
+    if (unavailableCartItems().length) {
+      showToast("Remove sold-out items before continuing.");
+      renderCart();
+      return;
+    }
     closeCart();
     pickupOptions();
     openDialog(checkoutDialog);
@@ -265,6 +279,13 @@
       showToast("Staff paused online ordering.");
       renderServiceState();
       renderProducts();
+      return;
+    }
+    if (unavailableCartItems().length) {
+      closeDialog(checkoutDialog);
+      showToast("An item just sold out. Remove it before continuing.");
+      renderProducts();
+      renderCart();
       return;
     }
     var form = new FormData(event.currentTarget);
@@ -318,6 +339,7 @@
     if (event.detail.key === demo.keys.settings) {
       renderServiceState();
       renderProducts();
+      renderCart();
     }
   });
 

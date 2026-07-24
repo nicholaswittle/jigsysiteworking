@@ -15,7 +15,8 @@ The staff pickup estimate sets the earliest “ready in about…” option offer
 customers on new requests. It can be adjusted from 10 to 90 minutes; it is not
 a countdown, expiration, or automatic cancellation. The separate menu
 availability tab includes every item in the online ordering menu so staff can
-turn ordering off for sold-out items.
+turn ordering off for sold-out items. Category tabs keep the 52-item control
+surface compact and mirror the customer ordering categories.
 
 The current concept demo uses browser-local storage, so its two views only share
 orders inside the same browser. A real pilot must replace that local storage

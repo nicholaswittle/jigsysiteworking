@@ -270,6 +270,7 @@ h1 {
   text-align: center;
 }
 .cart-item { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.cart-item.is-unavailable { color: #7b241b; background: #f6e8e5; margin-inline: -10px; padding-inline: 10px; }
 .cart-item-top { display: flex; justify-content: space-between; gap: 15px; }
 .cart-item h3 { margin: 0 0 4px; font-size: 1rem; }
 .cart-item p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.35; }
@@ -377,6 +378,9 @@ h1 {
 .availability-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px; border-bottom: 1px solid var(--line); }
 .availability-head h2 { margin: 4px 0 7px; font-size: 1.35rem; }
 .availability-count { flex: 0 0 auto; padding: 9px 12px; background: #dcecdc; color: #285d34; font: 800 .72rem/1 var(--display); }
+.availability-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 12px 22px; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
+.availability-tab { flex: 0 0 auto; border: 1px solid var(--line); background: var(--paper); padding: 9px 12px; cursor: pointer; font: 800 .7rem/1 var(--display); }
+.availability-tab[aria-selected="true"] { background: var(--char); color: white; border-color: var(--char); }
 .availability-groups { padding: 20px 22px 24px; display: grid; gap: 24px; }
 .availability-group h3 { margin: 0 0 10px; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .availability-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }

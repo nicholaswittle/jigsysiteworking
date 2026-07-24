@@ -8,6 +8,7 @@
   var ONLINE_ORDER_FEE = 0.99;
   var activeDay = dayKey(new Date());
   var selectedReportDay = activeDay;
+  var activeAvailabilityCategory = demo.products[0].category;
 
   function showToast(message) {
     toast.textContent = message;
@@ -31,15 +32,23 @@
 
   function renderAvailability(settings) {
     var categories = Array.from(new Set(demo.products.map(function (product) { return product.category; })));
-    var available = demo.products.filter(function (product) {
+    if (categories.indexOf(activeAvailabilityCategory) === -1) activeAvailabilityCategory = categories[0];
+    var categoryProducts = demo.products.filter(function (product) {
+      return product.category === activeAvailabilityCategory;
+    });
+    var available = categoryProducts.filter(function (product) {
       return settings.soldOut.indexOf(product.id) === -1;
     }).length;
     document.getElementById("availabilityCount").textContent =
-      available + " of " + demo.products.length + " available";
-    document.getElementById("menuAvailability").innerHTML = categories.map(function (category) {
-      var items = demo.products.filter(function (product) { return product.category === category; });
-      return '<section class="availability-group"><h3>' + demo.escapeHTML(category) + '</h3><div class="availability-grid">' +
-        items.map(function (product) {
+      available + " of " + categoryProducts.length + " available · " + demo.products.length + " total items";
+    document.getElementById("availabilityTabs").innerHTML = categories.map(function (category) {
+      return '<button type="button" class="availability-tab" role="tab" data-availability-category="' +
+        demo.escapeHTML(category) + '" aria-selected="' + String(category === activeAvailabilityCategory) + '">' +
+        demo.escapeHTML(category) + "</button>";
+    }).join("");
+    document.getElementById("menuAvailability").innerHTML =
+      '<section class="availability-group"><h3>' + demo.escapeHTML(activeAvailabilityCategory) + '</h3><div class="availability-grid">' +
+        categoryProducts.map(function (product) {
           var sold = settings.soldOut.indexOf(product.id) !== -1;
           return '<button type="button" data-sold="' + product.id + '" class="availability-item' +
             (sold ? " is-sold" : "") + '" aria-pressed="' + String(sold) + '">' +
@@ -47,7 +56,6 @@
             demo.escapeHTML(product.description) + '</small></span><b>' +
             (sold ? "Ordering off" : "Available") + "</b></button>";
         }).join("") + "</div></section>";
-    }).join("");
   }
 
   function displayStatus(order) {
@@ -342,6 +350,12 @@
     var index = soldOut.indexOf(id);
     if (index === -1) soldOut.push(id); else soldOut.splice(index, 1);
     updateSettings({ soldOut: soldOut });
+  });
+  document.getElementById("availabilityTabs").addEventListener("click", function (event) {
+    var button = event.target.closest("[data-availability-category]");
+    if (!button) return;
+    activeAvailabilityCategory = button.getAttribute("data-availability-category");
+    renderAvailability(demo.settings());
   });
   document.getElementById("orderList").addEventListener("click", function (event) {
     var accept = event.target.closest("[data-accept]");
