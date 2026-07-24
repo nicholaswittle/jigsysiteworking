@@ -13,6 +13,9 @@ All orders and settings use browser-local storage. No payment information is
 requested, no backend is connected, and nothing reaches the restaurant. The
 demo print action opens the normal system print dialog with a kitchen ticket.
 
+See `docs/PRINTER-AND-ORDER-FLOW.md` for the proposed two-screen production
+architecture and receipt-printer options.
+
 A redesign concept / practice template for **Jigsy's Brewpub & Restaurant**
 (Old Forge–style pizza, Enola, PA). Single self-contained `index.html` plus a
 small `images/` folder — no build step, no npm deps.
