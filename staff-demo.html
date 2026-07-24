@@ -33,13 +33,13 @@
     <section class="stats" aria-label="Order statistics">
       <div class="stat-card"><span>Waiting</span><strong id="statNew">0</strong></div>
       <div class="stat-card"><span>Accepted</span><strong id="statAccepted">0</strong></div>
-      <div class="stat-card"><span>Tickets printed</span><strong id="statPrinted">0</strong></div>
-      <div class="stat-card"><span>Due at pickup</span><strong id="statSales">$0</strong></div>
+      <div class="stat-card"><span>Rejected</span><strong id="statRejected">0</strong></div>
+      <div class="stat-card"><span>WiSense fees today</span><strong id="statFees">$0.00</strong></div>
     </section>
 
     <div class="staff-tabs" role="tablist" aria-label="Staff console views">
       <button class="staff-tab" id="ordersTab" type="button" role="tab" aria-selected="true" aria-controls="ordersView">Orders</button>
-      <button class="staff-tab" id="reportTab" type="button" role="tab" aria-selected="false" aria-controls="reportView">Shift fee report</button>
+      <button class="staff-tab" id="reportTab" type="button" role="tab" aria-selected="false" aria-controls="reportView">Daily report</button>
     </div>
 
     <div class="staff-grid" id="ordersView" role="tabpanel" aria-labelledby="ordersTab">
@@ -75,11 +75,12 @@
         <div class="orders-head">
           <div>
             <h2 id="ordersHeading">Pickup requests</h2>
-            <p class="fine-print">Accepting opens a kitchen ticket. Payment stays at the counter.</p>
+            <p class="fine-print">Today’s queue starts fresh automatically at midnight. Older orders stay in Daily reports.</p>
           </div>
           <div class="order-filters">
             <button class="filter-button" type="button" data-filter="New" aria-pressed="true">Waiting</button>
             <button class="filter-button" type="button" data-filter="Accepted" aria-pressed="false">Accepted</button>
+            <button class="filter-button" type="button" data-filter="Rejected" aria-pressed="false">Rejected</button>
             <button class="filter-button" type="button" data-filter="All" aria-pressed="false">All</button>
           </div>
         </div>
@@ -90,13 +91,14 @@
     <section class="report-panel" id="reportView" role="tabpanel" aria-labelledby="reportTab" hidden>
       <div class="report-head">
         <div>
-          <p class="eyebrow">End-of-shift settlement</p>
-          <h2>Online order fee report</h2>
-          <p class="fine-print" id="reportPeriod">Accepted orders recorded in this browser.</p>
+          <p class="eyebrow">End-of-day record</p>
+          <h2>Daily online order report</h2>
+          <label class="report-date-label" for="reportDate">Report date</label>
+          <select id="reportDate" class="report-date"></select>
+          <p class="fine-print" id="reportPeriod">Every online request received on this date.</p>
         </div>
         <div class="report-actions">
-          <button class="secondary-button" id="startNextShift" type="button">Start next shift</button>
-          <button class="primary-button" id="printReport" type="button">Print shift report</button>
+          <button class="primary-button" id="printReport" type="button">Print full-day report</button>
         </div>
       </div>
       <div class="report-summary">
@@ -110,19 +112,23 @@
           <strong id="reportCount">0</strong>
         </div>
         <div class="report-metric">
-          <span>Customer totals collected by Jigsy's</span>
+          <span>Rejected orders</span>
+          <strong id="reportRejected">0</strong>
+        </div>
+        <div class="report-metric">
+          <span>Accepted order value</span>
           <strong id="reportSales">$0.00</strong>
         </div>
       </div>
       <div class="report-table-wrap">
         <table class="report-table">
           <thead>
-            <tr><th>Accepted</th><th>Order</th><th>Customer total</th><th>WiSense fee</th></tr>
+            <tr><th>Received</th><th>Order</th><th>Status</th><th>Order total</th><th>WiSense fee</th></tr>
           </thead>
           <tbody id="reportRows"></tbody>
         </table>
       </div>
-      <p class="report-note">Waiting orders are not counted. This concept demo stores its report only on this device; production reporting will be shared and permanent.</p>
+      <p class="report-note">Only accepted orders earn the $0.99 fee. Orders are archived by date instead of deleted. This concept demo stores reports only on this device; production reporting will be shared and permanent.</p>
     </section>
   </main>
 

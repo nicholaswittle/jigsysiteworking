@@ -6,6 +6,8 @@
   var toast = document.getElementById("toast");
   var ticket = document.getElementById("printTicket");
   var ONLINE_ORDER_FEE = 0.99;
+  var activeDay = dayKey(new Date());
+  var selectedReportDay = activeDay;
 
   function showToast(message) {
     toast.textContent = message;
@@ -33,12 +35,37 @@
   }
 
   function displayStatus(order) {
-    return order.status === "New" ? "Waiting" : "Accepted";
+    if (order.status === "New") return "Waiting";
+    if (order.status === "Rejected") return "Rejected";
+    return "Accepted";
+  }
+
+  function dayKey(value) {
+    var date = value instanceof Date ? value : new Date(value);
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
+  }
+
+  function dayLabel(key) {
+    var date = new Date(key + "T12:00:00");
+    if (key === dayKey(new Date())) return "Today — " + date.toLocaleDateString();
+    var yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (key === dayKey(yesterday)) return "Yesterday — " + date.toLocaleDateString();
+    return date.toLocaleDateString([], { weekday: "short", year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function ordersForDay(orders, key) {
+    return orders.filter(function (order) { return dayKey(order.submittedAt) === key; });
   }
 
   function renderOrders() {
     var orders = demo.read(demo.keys.orders, []);
-    var visible = orders.filter(function (order) {
+    var todayOrders = ordersForDay(orders, activeDay);
+    var visible = todayOrders.filter(function (order) {
       if (filter === "All") return true;
       return order.status === filter;
     });
@@ -53,9 +80,15 @@
         var items = order.items.map(function (item) {
           return "<li><strong>" + demo.escapeHTML(item.name) + "</strong> - " + demo.escapeHTML(item.detail) + "</li>";
         }).join("");
-        var action = order.status === "New"
-          ? '<button type="button" data-accept="' + order.id + '" class="primary">Accept &amp; print ticket</button>'
-          : '<button type="button" data-print="' + order.id + '">Reprint ticket</button>';
+        var action;
+        if (order.status === "New") {
+          action = '<button type="button" data-accept="' + order.id + '" class="primary">Accept &amp; print ticket</button>' +
+            '<button type="button" data-reject="' + order.id + '" class="reject">Reject order</button>';
+        } else if (order.status === "Accepted") {
+          action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>';
+        } else {
+          action = '<span class="fine-print">Rejected orders are kept in the daily report and do not earn a fee.</span>';
+        }
         return '<article class="order-card">' +
           '<div class="order-card-top"><div><span class="order-id">' + demo.escapeHTML(order.id) + '</span> ' +
           '<span class="status-badge" data-status="' + demo.escapeHTML(order.status) + '">' + displayStatus(order) + '</span></div>' +
@@ -67,63 +100,61 @@
           '<div class="order-actions">' + action + '</div></article>';
       }).join("");
     }
-    renderStats(orders);
+    renderStats(todayOrders, orders);
   }
 
-  function renderStats(orders) {
-    var accepted = orders.filter(function (order) { return order.status === "Accepted"; });
+  function renderStats(todayOrders, allOrders) {
+    var accepted = todayOrders.filter(function (order) { return order.status === "Accepted"; });
     document.getElementById("statNew").textContent =
-      String(orders.filter(function (order) { return order.status === "New"; }).length);
+      String(todayOrders.filter(function (order) { return order.status === "New"; }).length);
     document.getElementById("statAccepted").textContent = String(accepted.length);
-    document.getElementById("statPrinted").textContent =
-      String(accepted.filter(function (order) { return Boolean(order.printedAt); }).length);
-    var sales = accepted.reduce(function (sum, order) { return sum + order.totals.total; }, 0);
-    document.getElementById("statSales").textContent = demo.money(sales);
-    renderReport(accepted);
-  }
-
-  function acceptedTime(order) {
-    return new Date(order.acceptedAt || order.updatedAt || order.submittedAt);
-  }
-
-  function shiftStartedAt() {
-    var saved = demo.settings().shiftStartedAt;
-    if (saved && !Number.isNaN(new Date(saved).getTime())) return new Date(saved);
-    var start = new Date();
-    start.setHours(0, 0, 0, 0);
-    return start;
-  }
-
-  function currentShiftAccepted(accepted) {
-    var start = shiftStartedAt().getTime();
-    return accepted.filter(function (order) {
-      return acceptedTime(order).getTime() >= start;
-    });
-  }
-
-  function renderReport(accepted) {
-    var chronological = currentShiftAccepted(accepted).sort(function (a, b) {
-      return acceptedTime(a) - acceptedTime(b);
-    });
-    var fees = chronological.reduce(function (sum, order) {
+    document.getElementById("statRejected").textContent =
+      String(todayOrders.filter(function (order) { return order.status === "Rejected"; }).length);
+    var fees = accepted.reduce(function (sum, order) {
       return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
     }, 0);
-    var sales = chronological.reduce(function (sum, order) {
+    document.getElementById("statFees").textContent = demo.money(fees);
+    renderReport(allOrders);
+  }
+
+  function renderReport(orders) {
+    var dates = Array.from(new Set([activeDay].concat(orders.map(function (order) {
+      return dayKey(order.submittedAt);
+    })))).sort().reverse();
+    if (dates.indexOf(selectedReportDay) === -1) selectedReportDay = activeDay;
+    var select = document.getElementById("reportDate");
+    select.innerHTML = dates.map(function (key) {
+      return '<option value="' + key + '"' + (key === selectedReportDay ? " selected" : "") + ">" +
+        demo.escapeHTML(dayLabel(key)) + "</option>";
+    }).join("");
+
+    var chronological = ordersForDay(orders, selectedReportDay).sort(function (a, b) {
+      return new Date(a.submittedAt) - new Date(b.submittedAt);
+    });
+    var accepted = chronological.filter(function (order) { return order.status === "Accepted"; });
+    var rejected = chronological.filter(function (order) { return order.status === "Rejected"; });
+    var fees = accepted.reduce(function (sum, order) {
+      return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
+    }, 0);
+    var sales = accepted.reduce(function (sum, order) {
       return sum + Number(order.totals.total || 0);
     }, 0);
-    document.getElementById("reportCount").textContent = String(chronological.length);
+    document.getElementById("reportCount").textContent = String(accepted.length);
+    document.getElementById("reportRejected").textContent = String(rejected.length);
     document.getElementById("reportFees").textContent = demo.money(fees);
     document.getElementById("reportSales").textContent = demo.money(sales);
     document.getElementById("reportPeriod").textContent =
-      "Current shift started " + shiftStartedAt().toLocaleString() + ". Only accepted orders are counted.";
+      chronological.length + " request" + (chronological.length === 1 ? "" : "s") +
+      " received on " + new Date(selectedReportDay + "T12:00:00").toLocaleDateString() + ".";
     document.getElementById("reportRows").innerHTML = chronological.length
       ? chronological.map(function (order) {
-          return "<tr><td>" + acceptedTime(order).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
+          var acceptedOrder = order.status === "Accepted";
+          return "<tr><td>" + new Date(order.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
             "</td><td><strong>" + demo.escapeHTML(order.id) + "</strong></td><td>" +
-            demo.money(order.totals.total) + "</td><td>" +
-            demo.money(order.totals.fee || ONLINE_ORDER_FEE) + "</td></tr>";
+            displayStatus(order) + "</td><td>" + demo.money(order.totals.total) + "</td><td>" +
+            demo.money(acceptedOrder ? (order.totals.fee || ONLINE_ORDER_FEE) : 0) + "</td></tr>";
         }).join("")
-      : '<tr><td colspan="4" class="report-empty">Accept an order to add it to this report.</td></tr>';
+      : '<tr><td colspan="5" class="report-empty">No online requests were received on this date.</td></tr>';
   }
 
   function showStaffView(view) {
@@ -134,51 +165,62 @@
     document.getElementById("reportTab").setAttribute("aria-selected", String(showReport));
   }
 
-  function reportMarkup(accepted) {
-    var chronological = currentShiftAccepted(accepted).sort(function (a, b) {
-      return acceptedTime(a) - acceptedTime(b);
+  function reportMarkup(orders) {
+    var chronological = ordersForDay(orders, selectedReportDay).sort(function (a, b) {
+      return new Date(a.submittedAt) - new Date(b.submittedAt);
     });
-    var fees = chronological.reduce(function (sum, order) {
+    var accepted = chronological.filter(function (order) { return order.status === "Accepted"; });
+    var rejected = chronological.filter(function (order) { return order.status === "Rejected"; });
+    var waiting = chronological.filter(function (order) { return order.status === "New"; });
+    var fees = accepted.reduce(function (sum, order) {
       return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
     }, 0);
-    var sales = chronological.reduce(function (sum, order) {
+    var sales = accepted.reduce(function (sum, order) {
       return sum + Number(order.totals.total || 0);
     }, 0);
     var rows = chronological.map(function (order) {
       return '<div class="ticket-total"><span>' + demo.escapeHTML(order.id) + ' · ' +
-        acceptedTime(order).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
-        '</span><strong>' + demo.money(order.totals.fee || ONLINE_ORDER_FEE) + "</strong></div>";
+        new Date(order.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
+        '</span><strong>' + displayStatus(order).toUpperCase() + "</strong></div>" +
+        '<div class="ticket-total"><small>' + demo.money(order.totals.total) +
+        ' order</small><small>' + (order.status === "Accepted" ? demo.money(order.totals.fee || ONLINE_ORDER_FEE) : "$0.00") +
+        " fee</small></div>";
     }).join("");
-    return '<div class="ticket-center"><strong class="ticket-brand">JIGSY’S</strong><br>END-OF-SHIFT FEE REPORT</div>' +
+    return '<div class="ticket-center"><strong class="ticket-brand">JIGSY’S</strong><br>FULL-DAY ONLINE ORDER REPORT</div>' +
       '<div class="ticket-rule"></div>' +
+      '<div><strong>REPORT DATE:</strong> ' + new Date(selectedReportDay + "T12:00:00").toLocaleDateString() + '</div>' +
       '<div><strong>PRINTED:</strong> ' + new Date().toLocaleString() + '</div>' +
-      '<div><strong>SHIFT START:</strong> ' + shiftStartedAt().toLocaleString() + '</div>' +
-      '<div><strong>ACCEPTED ORDERS:</strong> ' + chronological.length + '</div>' +
+      '<div><strong>RECEIVED:</strong> ' + chronological.length + '</div>' +
+      '<div><strong>ACCEPTED:</strong> ' + accepted.length + ' &nbsp; <strong>REJECTED:</strong> ' + rejected.length + '</div>' +
+      '<div><strong>STILL WAITING:</strong> ' + waiting.length + '</div>' +
       '<div class="ticket-rule"></div>' +
-      (rows || '<div class="ticket-center">NO ACCEPTED ORDERS</div>') +
+      (rows || '<div class="ticket-center">NO ONLINE REQUESTS</div>') +
       '<div class="ticket-rule"></div>' +
-      '<div class="ticket-total"><span>Customer totals</span><strong>' + demo.money(sales) + '</strong></div>' +
+      '<div class="ticket-total"><span>Accepted order value</span><strong>' + demo.money(sales) + '</strong></div>' +
       '<div class="ticket-total ticket-due"><span>WISENSE FEES</span><strong>' + demo.money(fees) + '</strong></div>' +
       '<div class="ticket-center">$0.99 per accepted online order</div>' +
       '<div class="ticket-rule"></div>' +
-      '<div class="ticket-center">Jigsy’s collects customer payment at pickup.<br>This report records fees only.</div>';
+      '<div class="ticket-center">Jigsy’s collects customer payment at pickup.<br>Rejected and waiting orders earn no fee.</div>';
   }
 
-  function printShiftReport() {
-    var accepted = demo.read(demo.keys.orders, []).filter(function (order) {
-      return order.status === "Accepted";
-    });
-    ticket.innerHTML = reportMarkup(accepted);
+  function printDailyReport() {
+    var orders = demo.read(demo.keys.orders, []);
+    ticket.innerHTML = reportMarkup(orders);
     ticket.setAttribute("aria-hidden", "false");
-    showToast("Opening shift fee report…");
+    showToast("Opening full-day report…");
     window.setTimeout(function () { window.print(); }, 80);
   }
 
-  function startNextShift() {
-    if (!window.confirm("Start a new shift? Current orders stay saved, but the fee report will restart at $0.00.")) return;
-    updateSettings({ shiftStartedAt: new Date().toISOString() });
+  function rejectOrder(id) {
+    if (!window.confirm("Reject " + id + "? It will remain in the daily report with a $0.00 WiSense fee.")) return;
+    var orders = demo.read(demo.keys.orders, []);
+    var order = orders.find(function (item) { return item.id === id; });
+    if (!order || order.status !== "New") return;
+    order.status = "Rejected";
+    order.rejectedAt = new Date().toISOString();
+    demo.write(demo.keys.orders, orders);
     renderOrders();
-    showToast("New shift started. Fee report reset.");
+    showToast(id + " rejected. No fee added.");
   }
 
   function ticketMarkup(order) {
@@ -283,8 +325,10 @@
   });
   document.getElementById("orderList").addEventListener("click", function (event) {
     var accept = event.target.closest("[data-accept]");
+    var reject = event.target.closest("[data-reject]");
     var reprint = event.target.closest("[data-print]");
     if (accept) printOrder(accept.getAttribute("data-accept"), true);
+    if (reject) rejectOrder(reject.getAttribute("data-reject"));
     if (reprint) printOrder(reprint.getAttribute("data-print"), false);
   });
   document.querySelector(".order-filters").addEventListener("click", function (event) {
@@ -299,12 +343,15 @@
   document.getElementById("seedOrders").addEventListener("click", seedOrders);
   document.getElementById("ordersTab").addEventListener("click", function () { showStaffView("orders"); });
   document.getElementById("reportTab").addEventListener("click", function () { showStaffView("report"); });
-  document.getElementById("printReport").addEventListener("click", printShiftReport);
-  document.getElementById("startNextShift").addEventListener("click", startNextShift);
+  document.getElementById("reportDate").addEventListener("change", function (event) {
+    selectedReportDay = event.target.value;
+    renderReport(demo.read(demo.keys.orders, []));
+  });
+  document.getElementById("printReport").addEventListener("click", printDailyReport);
   document.getElementById("resetDemo").addEventListener("click", function () {
     demo.write(demo.keys.orders, []);
     demo.write(demo.keys.cart, []);
-    demo.write(demo.keys.settings, { paused: false, prepMinutes: 25, soldOut: [], shiftStartedAt: new Date().toISOString() });
+    demo.write(demo.keys.settings, { paused: false, prepMinutes: 25, soldOut: [] });
     renderControls();
     renderOrders();
     showToast("Demo data reset.");
@@ -315,7 +362,7 @@
   var legacyOrders = demo.read(demo.keys.orders, []);
   var legacyChanged = false;
   legacyOrders.forEach(function (order) {
-    if (order.status !== "New" && order.status !== "Accepted") {
+    if (order.status !== "New" && order.status !== "Accepted" && order.status !== "Rejected") {
       order.status = "Accepted";
       order.acceptedAt = order.acceptedAt || order.updatedAt || order.submittedAt;
       legacyChanged = true;
@@ -325,4 +372,16 @@
 
   renderControls();
   renderOrders();
+  window.setInterval(function () {
+    var today = dayKey(new Date());
+    if (today === activeDay) return;
+    activeDay = today;
+    selectedReportDay = today;
+    filter = "New";
+    document.querySelectorAll("[data-filter]").forEach(function (item) {
+      item.setAttribute("aria-pressed", String(item.getAttribute("data-filter") === "New"));
+    });
+    renderOrders();
+    showToast("New day started. Yesterday’s orders moved to Daily reports.");
+  }, 60000);
 })();

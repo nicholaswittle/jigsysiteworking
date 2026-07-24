@@ -7,11 +7,14 @@ without changing the original Jigsy website concept or its live deployment.
 
 - `index.html` — existing concept site with links into the isolated demo
 - `order-demo.html` — customer pickup menu, modifiers, and a pay-at-pickup request
-- `staff-demo.html` — one-step accept-and-print queue, prep time, pause, and sold-out controls
+- `staff-demo.html` — accept, reject, and print queue; automatic daily rollover;
+  printable daily reports; prep time, pause, and sold-out controls
 
 All orders and settings use browser-local storage. No payment information is
 requested, no backend is connected, and nothing reaches the restaurant. The
-demo print action opens the normal system print dialog with a kitchen ticket.
+demo print actions open the normal system print dialog with either a kitchen
+ticket or a full-day order report. Orders are retained by date for reporting,
+while the active queue shows only the current day.
 
 See `docs/PRINTER-AND-ORDER-FLOW.md` for the proposed two-screen production
 architecture and receipt-printer options.

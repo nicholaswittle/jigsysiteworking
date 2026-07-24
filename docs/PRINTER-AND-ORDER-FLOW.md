@@ -8,7 +8,8 @@ The finished system has two web views backed by the same online order database:
    pickup request.
 2. **Jigsy's staff screen:** a password-protected page kept open on a tablet or
    computer at the restaurant. It receives new requests, lets staff pause
-   ordering, and provides the **Accept & Print** action.
+   ordering, and provides **Accept & Print** and **Reject** actions. Rejected
+   requests remain in the daily record and do not incur the 99-cent fee.
 
 The current concept demo uses browser-local storage, so its two views only share
 orders inside the same browser. A real pilot must replace that local storage
@@ -41,6 +42,13 @@ The practical pilot sequence is:
 3. Test the browser print-dialog version.
 4. Add PrintNode or QZ Tray only if Jigsy's wants one-click or automatic
    printing with no dialog.
+
+## Daily reporting
+
+The active queue rolls over automatically at local midnight instead of deleting
+orders. Staff can choose a date in **Daily report** and print a receipt-width
+record of every request received, including accepted, rejected, and still
+waiting orders. Only accepted orders count toward the 99-cent WiSense fee.
 
 ## Real pilot work still required
 
