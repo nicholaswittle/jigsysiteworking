@@ -29,6 +29,13 @@ changes from Waiting to Accepted or Not accepted when staff responds in the
 same browser. A production pilot must use the shared database and send the same
 outcome by SMS.
 
+The public experience is designed as **one website with optional ordering**.
+When staff pauses online orders, every customer-facing ordering link disappears
+and the site continues as a normal menu, hours, phone, directions, and
+restaurant-information website. Reopening orders restores those links. In the
+current demo this setting is browser-local; production must store it in the
+shared database so every customer sees the same state.
+
 See `docs/PRINTER-AND-ORDER-FLOW.md` for the proposed two-screen production
 architecture and receipt-printer options.
 
