@@ -51,26 +51,39 @@
   function renderSquareStatus(status) {
     var connected = Boolean(status && status.connected);
     var configured = Boolean(status && status.configured);
+    var checkoutEnabled = connected && status.paymentMode === "square";
     var badge = document.getElementById("squareStatusBadge");
     var title = document.getElementById("squareStatusTitle");
     var copy = document.getElementById("squareStatusCopy");
     var details = document.getElementById("squareDetails");
     var connect = document.getElementById("connectSquare");
     var disconnect = document.getElementById("disconnectSquare");
+    var checkoutControl = document.getElementById("squareCheckoutControl");
+    var checkoutBadge = document.getElementById("squareCheckoutBadge");
+    var checkoutButton = document.getElementById("toggleSquareCheckout");
 
-    badge.textContent = connected ? "Connected" : (configured ? "Ready to connect" : "Setup needed");
+    badge.textContent = connected
+      ? (checkoutEnabled ? "Connected · Checkout on" : "Connected · Checkout off")
+      : (configured ? "Ready to connect" : "Setup needed");
     badge.classList.toggle("is-connected", connected);
     title.textContent = connected
       ? "Square Sandbox is connected"
       : (configured ? "Authorize a Square test business" : "Square Sandbox needs site configuration");
     copy.textContent = connected
-      ? "The website can securely identify the test merchant and location. Payment processing is still off."
+      ? (checkoutEnabled
+          ? "Test-card checkout is active. Square captures the authorized Sandbox payment only when staff accepts the order."
+          : "The website can securely identify the test merchant and location. Customer checkout is still pay at pickup.")
       : (configured
           ? "You will sign in on Square’s own page and choose the sandbox test business. WiSense never sees the Square password."
           : "The protected Square application values are missing from this deployment.");
     details.hidden = !connected;
     connect.hidden = connected || !configured;
     disconnect.hidden = !connected;
+    checkoutControl.hidden = !connected;
+    checkoutBadge.textContent = checkoutEnabled ? "Checkout on" : "Checkout off";
+    checkoutBadge.classList.toggle("is-connected", checkoutEnabled);
+    checkoutButton.textContent = checkoutEnabled ? "Return to pay at pickup" : "Enable test checkout";
+    checkoutButton.setAttribute("data-enabled", String(checkoutEnabled));
     if (connected) {
       document.getElementById("squareLocation").textContent = status.locationName || "Square test location";
       document.getElementById("squareMerchant").textContent = shortIdentifier(status.merchantId);
@@ -156,15 +169,25 @@
         var items = order.items.map(function (item) {
           return "<li><strong>" + demo.escapeHTML(item.name) + "</strong> - " + demo.escapeHTML(item.detail) + "</li>";
         }).join("");
-        var paymentLine = order.status === "Completed"
-          ? demo.money(order.totals.total) + " paid · completed"
-          : demo.money(order.totals.total) + " due at pickup";
+        var paymentLine;
+        if (order.paymentMode === "square") {
+          paymentLine = order.paymentStatus === "authorized"
+            ? demo.money(order.totals.total) + " Sandbox authorized · capture on accept"
+            : order.paymentStatus === "completed"
+              ? demo.money(order.totals.total) + " Sandbox captured"
+              : demo.money(order.totals.total) + " Sandbox authorization voided";
+        } else {
+          paymentLine = order.status === "Completed"
+            ? demo.money(order.totals.total) + " paid · completed"
+            : demo.money(order.totals.total) + " due at pickup";
+        }
         var action;
         if (order.status === "New") {
           action = '<button type="button" data-accept="' + order.id + '" class="primary">Accept &amp; print ticket</button>' +
             '<button type="button" data-reject="' + order.id + '" class="reject">Reject order</button>';
         } else if (order.status === "Accepted") {
-          action = '<button type="button" data-complete="' + order.id + '" class="primary">Mark paid &amp; completed</button>' +
+          action = '<button type="button" data-complete="' + order.id + '" class="primary">' +
+            (order.paymentMode === "square" ? "Mark order completed" : "Mark paid &amp; completed") + "</button>" +
             '<button type="button" data-print="' + order.id + '">Reprint ticket</button>';
         } else if (order.status === "Completed") {
           action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' +
@@ -337,9 +360,15 @@
       '<div class="ticket-total"><span>Food subtotal</span><strong>' + demo.money(order.totals.subtotal) + '</strong></div>' +
       '<div class="ticket-total"><span>Estimated tax</span><strong>' + demo.money(order.totals.tax) + '</strong></div>' +
       '<div class="ticket-total"><span>Online ordering fee</span><strong>' + demo.money(order.totals.fee) + '</strong></div>' +
-      '<div class="ticket-total ticket-due"><span>DUE AT PICKUP</span><strong>' + demo.money(order.totals.total) + '</strong></div>' +
+      '<div class="ticket-total ticket-due"><span>' +
+        (order.paymentMode === "square" ? "SQUARE SANDBOX CAPTURED" : "DUE AT PICKUP") +
+        '</span><strong>' + demo.money(order.totals.total) + '</strong></div>' +
       '<div class="ticket-rule"></div>' +
-      '<div class="ticket-center">COLLECT PAYMENT AT COUNTER<br>MARK PAID / COMPLETED AFTER PAYMENT</div>';
+      '<div class="ticket-center">' +
+        (order.paymentMode === "square"
+          ? "TEST PAYMENT CAPTURED WHEN ACCEPTED<br>NO PAYMENT DUE AT COUNTER"
+          : "COLLECT PAYMENT AT COUNTER<br>MARK PAID / COMPLETED AFTER PAYMENT") +
+        "</div>";
   }
 
   async function printOrder(id, acceptFirst) {
@@ -362,7 +391,11 @@
   }
 
   async function completeOrder(id) {
-    if (!window.confirm("Mark " + id + " paid and completed? This adds the $0.99 WiSense fee to the report.")) return;
+    var order = ordersCache.find(function (item) { return item.id === id; });
+    var prompt = order && order.paymentMode === "square"
+      ? "Mark " + id + " completed? Its Sandbox payment was already captured when accepted, and this adds the $0.99 WiSense fee to the report."
+      : "Mark " + id + " paid and completed? This adds the $0.99 WiSense fee to the report.";
+    if (!window.confirm(prompt)) return;
     try {
       await api.updateOrder(id, "complete");
       await refreshStaffData();
@@ -414,7 +447,8 @@
     }
     if ("Notification" in window && Notification.permission === "granted") {
       new Notification("New Jigsy's order " + order.id, {
-        body: order.customer.name + " · " + demo.money(order.totals.total) + " due at pickup",
+        body: order.customer.name + " · " + demo.money(order.totals.total) +
+          (order.paymentMode === "square" ? " Sandbox authorized" : " due at pickup"),
         tag: order.id
       });
     }
@@ -518,6 +552,30 @@
       await api.loadStaffSettings();
       renderControls();
       showToast("Square Sandbox disconnected.");
+    } catch (error) {
+      handleStaffError(error);
+    } finally {
+      button.disabled = false;
+    }
+  });
+  document.getElementById("toggleSquareCheckout").addEventListener("click", async function (event) {
+    var button = event.currentTarget;
+    var currentlyEnabled = button.getAttribute("data-enabled") === "true";
+    var nextEnabled = !currentlyEnabled;
+    var question = nextEnabled
+      ? "Enable Square Sandbox test-card checkout? No real cards or money can be used."
+      : "Turn off Sandbox card checkout and return customers to pay at pickup?";
+    if (!window.confirm(question)) return;
+    button.disabled = true;
+    try {
+      var result = await api.setSquarePaymentMode(nextEnabled);
+      if (result.settings) {
+        demo.write(demo.keys.settings, result.settings);
+        await api.loadStaffSettings();
+      }
+      renderSquareStatus(result.status);
+      renderControls();
+      showToast(nextEnabled ? "Square Sandbox test checkout enabled." : "Customer checkout returned to pay at pickup.");
     } catch (error) {
       handleStaffError(error);
     } finally {

@@ -15,6 +15,7 @@ Jigsy's as its first configuration.
 - Kitchen ticket and daily receipt-width report printing
 - Manual pay-at-pickup mode
 - Square Sandbox OAuth, encrypted tokens, location display, and disconnect
+- Staff-controlled Sandbox checkout with authorize, capture, and void
 - Square-ready payment mode and payment-status fields
 - Daily and monthly per-order fee reporting
 - Foreground browser notifications and audible new-order alert
@@ -38,8 +39,8 @@ The following must become setup data rather than new application code:
 - Payments default to manual collection at pickup.
 - A completed/paid order, not merely an accepted order, earns the WiSense fee.
 - A Square Sandbox test business can be connected without activating card
-  checkout. Payment mode remains manual until the separate checkout flow passes
-  end-to-end Sandbox testing.
+  checkout. Staff can switch the test checkout on for an end-to-end practice
+  order, then return to manual payment at pickup at any time.
 
 ## Next reusable-platform upgrades
 
@@ -50,7 +51,6 @@ The following must become setup data rather than new application code:
    locations.
 4. Validate all prices and taxes on the server from the connected Square
    catalog.
-5. Add delayed payment capture: accept completes payment, reject cancels it.
-6. Add a push-notification service worker and optional SMS confirmation.
-7. Add multi-restaurant routing and separate staff authorization for each
+5. Add a push-notification service worker and optional SMS confirmation.
+6. Add multi-restaurant routing and separate staff authorization for each
    restaurant.

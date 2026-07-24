@@ -15,8 +15,12 @@ real money.
 - The staff screen shows the connected Square test location without exposing
   tokens.
 - Staff can disconnect the test account.
-- Customer payment remains **manual / pay at pickup**. Connecting Square alone
-  does not activate card checkout.
+- Staff can separately turn **Square Sandbox card checkout** on or off.
+- When checkout is on, a customer test card is authorized when the order is
+  submitted. Square captures it only after staff accepts the order, and voids
+  it if staff rejects the order.
+- OAuth access tokens are refreshed server-side when needed. Square credentials
+  and payment tokens never enter the browser or repository.
 
 ## One Square Developer Console setting
 
@@ -35,19 +39,14 @@ will cause authorization to fail.
 4. On Square's page, sign into a Sandbox test account and approve the requested
    permissions.
 5. Confirm the staff screen says **Connected** and displays the test location.
-6. Use **Disconnect test account** when the practice connection is no longer
+6. Turn on **Sandbox card checkout**.
+7. Open the customer order page and submit a test order with Square's Sandbox
+   Visa number `4111 1111 1111 1111`, CVV `111`, any future expiration date,
+   and a valid ZIP code such as `17025`.
+8. Accept the order in the staff console to capture the test authorization, or
+   reject it to void the authorization.
+9. Use **Disconnect test account** when the practice connection is no longer
    needed.
-
-## Next payment milestone
-
-After this connection is verified, the separate checkout milestone is:
-
-1. Load Square's Web Payments SDK on the customer checkout page.
-2. Use a Square Sandbox test card to create a one-time payment token.
-3. Send that token to the server.
-4. Create a Square order and payment for the verified server-side total.
-5. Keep rejected orders at a $0.00 WiSense fee and count only completed, paid
-   orders.
 
 No production Square credentials, real cards, or live money should be used
 until the Sandbox flow has passed end-to-end testing and the owners explicitly

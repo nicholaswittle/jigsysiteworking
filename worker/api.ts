@@ -4,7 +4,7 @@ const RESTAURANT_ID = "jigsys";
 const SESSION_COOKIE = "wisense_staff_session";
 const SQUARE_STATE_COOKIE = "wisense_square_oauth";
 const SESSION_SECONDS = 12 * 60 * 60;
-const SQUARE_API_VERSION = "2026-01-22";
+const SQUARE_API_VERSION = "2026-07-15";
 const SQUARE_SCOPES = [
   "MERCHANT_PROFILE_READ",
   "ITEMS_READ",
@@ -76,6 +76,7 @@ type StoredOrderRow = {
   total_cents: number;
   payment_mode: string;
   payment_status: string;
+  square_payment_id: string | null;
 };
 
 type SquareConnectionRow = {
@@ -311,7 +312,8 @@ async function ensureSchema(env: OrderingEnv) {
         tax_cents INTEGER NOT NULL,
         total_cents INTEGER NOT NULL,
         payment_mode TEXT NOT NULL,
-        payment_status TEXT NOT NULL
+        payment_status TEXT NOT NULL,
+        square_payment_id TEXT
       )
     `),
     env.DB.prepare(`
@@ -336,6 +338,14 @@ async function ensureSchema(env: OrderingEnv) {
       "CREATE INDEX IF NOT EXISTS orders_restaurant_status_idx ON orders (restaurant_id, status, submitted_at DESC)",
     ),
   ]);
+  const orderColumns = await env.DB.prepare("PRAGMA table_info(orders)").all<{ name: string }>();
+  if (!(orderColumns.results ?? []).some((column) => column.name === "square_payment_id")) {
+    try {
+      await env.DB.prepare("ALTER TABLE orders ADD COLUMN square_payment_id TEXT").run();
+    } catch (error) {
+      if (!String(error).toLowerCase().includes("duplicate column")) throw error;
+    }
+  }
 }
 
 async function getSettings(env: OrderingEnv) {
@@ -398,6 +408,7 @@ function rowToOrder(row: StoredOrderRow, includePrivate = true) {
     pickupMinutes: row.pickup_minutes,
     paymentMode: row.payment_mode,
     paymentStatus: row.payment_status,
+    squarePaymentId: includePrivate ? row.square_payment_id : undefined,
     totals: {
       subtotal: row.subtotal_cents / 100,
       fee: row.fee_cents / 100,
@@ -452,6 +463,7 @@ async function createOrder(request: Request, env: OrderingEnv) {
     notes?: unknown;
     pickupMinutes?: unknown;
     items?: unknown;
+    paymentSourceId?: unknown;
   };
   const name = cleanText(body.customer?.name, 80);
   const phone = cleanText(body.customer?.phone, 30);
@@ -459,6 +471,7 @@ async function createOrder(request: Request, env: OrderingEnv) {
   const notes = cleanText(body.notes, 500);
   const pickupMinutes = Math.round(Number(body.pickupMinutes));
   const items = Array.isArray(body.items) ? body.items.slice(0, 40) as SubmittedItem[] : [];
+  const paymentSourceId = cleanText(body.paymentSourceId, 512);
 
   if (name.length < 2) return json({ error: "Enter the customer's name." }, 400);
   if (phoneDigits.length < 10) return json({ error: "Enter a complete phone number." }, 400);
@@ -499,6 +512,19 @@ async function createOrder(request: Request, env: OrderingEnv) {
   const totalCents = subtotalCents + feeCents + taxCents;
   const now = new Date().toISOString();
   const publicToken = randomToken();
+  const squareMode = settings.paymentMode === "square";
+
+  if (squareMode) {
+    if (env.SQUARE_ENV === "production") {
+      return json({ error: "Live card payments have not been approved for this pilot." }, 409);
+    }
+    if (!settings.squareConnected || !(await getSquareConnection(env))) {
+      return json({ error: "Square Sandbox checkout is temporarily unavailable." }, 409);
+    }
+    if (!paymentSourceId) {
+      return json({ error: "Enter the Square Sandbox test card before sending the order." }, 400);
+    }
+  }
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const id = newOrderId();
@@ -507,12 +533,14 @@ async function createOrder(request: Request, env: OrderingEnv) {
         INSERT INTO orders (
           id, restaurant_id, public_token, status, submitted_at, updated_at,
           pickup_minutes, customer_json, notes, items_json, subtotal_cents,
-          fee_cents, tax_cents, total_cents, payment_mode, payment_status
-        ) VALUES (?, ?, ?, 'New', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          fee_cents, tax_cents, total_cents, payment_mode, payment_status,
+          square_payment_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         id,
         RESTAURANT_ID,
         publicToken,
+        squareMode ? "PaymentPending" : "New",
         now,
         now,
         pickupMinutes,
@@ -524,8 +552,35 @@ async function createOrder(request: Request, env: OrderingEnv) {
         taxCents,
         totalCents,
         settings.paymentMode,
-        settings.paymentMode === "manual" ? "due_at_pickup" : "authorization_required",
+        squareMode ? "authorizing" : "due_at_pickup",
+        null,
       ).run();
+
+      let squarePaymentId: string | null = null;
+      if (squareMode) {
+        try {
+          squarePaymentId = await authorizeSquarePayment(env, {
+            id,
+            sourceId: paymentSourceId,
+            totalCents,
+          });
+          await env.DB.prepare(`
+            UPDATE orders
+            SET status = 'New', payment_status = 'authorized',
+                square_payment_id = ?, updated_at = ?
+            WHERE restaurant_id = ? AND id = ? AND status = 'PaymentPending'
+          `).bind(squarePaymentId, new Date().toISOString(), RESTAURANT_ID, id).run();
+        } catch (error) {
+          await env.DB.prepare(
+            "DELETE FROM orders WHERE restaurant_id = ? AND id = ? AND status = 'PaymentPending'",
+          ).bind(RESTAURANT_ID, id).run();
+          if (error instanceof SquarePaymentError) {
+            return json({ error: error.message }, error.status);
+          }
+          throw error;
+        }
+      }
+
       return json({
         order: {
           id,
@@ -534,7 +589,7 @@ async function createOrder(request: Request, env: OrderingEnv) {
           submittedAt: now,
           pickupMinutes,
           paymentMode: settings.paymentMode,
-          paymentStatus: settings.paymentMode === "manual" ? "due_at_pickup" : "authorization_required",
+          paymentStatus: squareMode ? "authorized" : "due_at_pickup",
           totals: {
             subtotal: subtotalCents / 100,
             fee: feeCents / 100,
@@ -566,7 +621,7 @@ async function staffOrders(url: URL, env: OrderingEnv) {
   const days = Math.min(90, Math.max(1, Number(url.searchParams.get("days") ?? 31)));
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   const result = await env.DB.prepare(
-    "SELECT * FROM orders WHERE restaurant_id = ? AND submitted_at >= ? ORDER BY submitted_at DESC LIMIT 1000",
+    "SELECT * FROM orders WHERE restaurant_id = ? AND submitted_at >= ? AND status != 'PaymentPending' ORDER BY submitted_at DESC LIMIT 1000",
   ).bind(RESTAURANT_ID, since).all<StoredOrderRow>();
   return json({ orders: (result.results ?? []).map((row) => rowToOrder(row, true)) });
 }
@@ -575,9 +630,18 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
   const body = await request.json().catch(() => ({})) as { action?: unknown };
   const action = cleanText(body.action, 30);
   const now = new Date().toISOString();
+  const existing = await env.DB.prepare(
+    "SELECT * FROM orders WHERE restaurant_id = ? AND id = ?",
+  ).bind(RESTAURANT_ID, id).first<StoredOrderRow>();
+  if (!existing) return json({ error: "Order not found." }, 404);
 
   const transitions: Record<string, { from: string[]; to: string; timeField?: string; paymentStatus?: string }> = {
-    accept: { from: ["New"], to: "Accepted", timeField: "accepted_at" },
+    accept: {
+      from: ["New"],
+      to: "Accepted",
+      timeField: "accepted_at",
+      paymentStatus: existing.payment_mode === "square" ? "completed" : undefined,
+    },
     reject: { from: ["New"], to: "Rejected", timeField: "rejected_at", paymentStatus: "cancelled" },
     complete: { from: ["Accepted"], to: "Completed", timeField: "completed_at", paymentStatus: "completed" },
     cancel: { from: ["Accepted"], to: "Cancelled", timeField: "rejected_at", paymentStatus: "cancelled" },
@@ -591,6 +655,27 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
   } else {
     const transition = transitions[action];
     if (!transition) return json({ error: "Unknown order action." }, 400);
+    if (!transition.from.includes(existing.status)) {
+      return json({ error: "The order changed before this action was applied. Refresh and try again." }, 409);
+    }
+    if (existing.payment_mode === "square" && action === "cancel") {
+      return json({ error: "A captured Square payment requires a separate refund. Cancellation is not enabled yet." }, 409);
+    }
+    if (existing.payment_mode === "square" && (action === "accept" || action === "reject")) {
+      if (!existing.square_payment_id || existing.payment_status !== "authorized") {
+        return json({ error: "This order does not have a valid Square authorization." }, 409);
+      }
+      try {
+        await settleSquarePayment(
+          env,
+          existing.square_payment_id,
+          action === "accept" ? "complete" : "cancel",
+        );
+      } catch (error) {
+        if (error instanceof SquarePaymentError) return json({ error: error.message }, error.status);
+        throw error;
+      }
+    }
     const placeholders = transition.from.map(() => "?").join(", ");
     const timeAssignment = transition.timeField ? `, ${transition.timeField} = ?` : "";
     const paymentAssignment = transition.paymentStatus ? ", payment_status = ?" : "";
@@ -647,6 +732,182 @@ async function getSquareConnection(env: OrderingEnv) {
   ).bind(RESTAURANT_ID).first<SquareConnectionRow>();
 }
 
+class SquarePaymentError extends Error {
+  status: number;
+
+  constructor(message: string, status = 502) {
+    super(message);
+    this.name = "SquarePaymentError";
+    this.status = status;
+  }
+}
+
+type SquareErrorPayload = {
+  errors?: Array<{ code?: string; detail?: string; category?: string }>;
+};
+
+function squarePaymentMessage(payload: SquareErrorPayload, fallback: string) {
+  const code = payload.errors?.[0]?.code ?? "";
+  const messages: Record<string, string> = {
+    CARD_DECLINED: "The Sandbox test card was declined.",
+    GENERIC_DECLINE: "The Sandbox test card was declined.",
+    VERIFY_CVV_FAILURE: "The Sandbox test card security code was not accepted.",
+    VERIFY_POSTAL_CODE_FAILURE: "The Sandbox test postal code was not accepted.",
+    EXPIRATION_FAILURE: "The Sandbox test card expiration date was not accepted.",
+    CARD_TOKEN_EXPIRED: "The Sandbox card entry expired. Enter the test card again.",
+    CARD_TOKEN_USED: "That Sandbox card entry was already submitted. Enter it again.",
+  };
+  return messages[code] ?? fallback;
+}
+
+async function squareAccessToken(
+  env: OrderingEnv,
+  connection: SquareConnectionRow,
+  forceRefresh = false,
+) {
+  if (!squareConfigured(env)) throw new SquarePaymentError("Square Sandbox is not configured.", 503);
+  const refreshedAt = new Date(connection.updated_at).getTime();
+  const expiresAt = new Date(connection.expires_at).getTime();
+  const shouldRefresh = forceRefresh
+    || !Number.isFinite(refreshedAt)
+    || !Number.isFinite(expiresAt)
+    || Date.now() - refreshedAt > 6 * 24 * 60 * 60 * 1000
+    || expiresAt - Date.now() < 7 * 24 * 60 * 60 * 1000;
+  if (!shouldRefresh) return decryptSquareToken(connection.access_token_encrypted, env);
+
+  const currentRefreshToken = await decryptSquareToken(connection.refresh_token_encrypted, env);
+  const response = await fetch(`${squareBaseUrl(env)}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "Square-Version": SQUARE_API_VERSION,
+    },
+    body: JSON.stringify({
+      client_id: env.SQUARE_APPLICATION_ID,
+      client_secret: env.SQUARE_APPLICATION_SECRET,
+      grant_type: "refresh_token",
+      refresh_token: currentRefreshToken,
+      redirect_uri: env.SQUARE_REDIRECT_URI,
+    }),
+  });
+  const data = await response.json() as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_at?: string;
+  } & SquareErrorPayload;
+  if (!response.ok || !data.access_token || !data.expires_at) {
+    console.error("Square OAuth refresh failed", response.status, data.errors?.[0]?.code ?? "unknown");
+    throw new SquarePaymentError("The Square Sandbox connection needs to be renewed in the staff Payments tab.", 503);
+  }
+  const nextRefreshToken = data.refresh_token || currentRefreshToken;
+  const now = new Date().toISOString();
+  await env.DB.prepare(`
+    UPDATE square_connections
+    SET access_token_encrypted = ?, refresh_token_encrypted = ?,
+        expires_at = ?, updated_at = ?
+    WHERE restaurant_id = ?
+  `).bind(
+    await encryptSquareToken(data.access_token, env),
+    await encryptSquareToken(nextRefreshToken, env),
+    data.expires_at,
+    now,
+    RESTAURANT_ID,
+  ).run();
+  return data.access_token;
+}
+
+async function squareApiRequest<T>(
+  env: OrderingEnv,
+  path: string,
+  init: RequestInit = {},
+) {
+  const connection = await getSquareConnection(env);
+  if (!connection) throw new SquarePaymentError("Square Sandbox is not connected.", 503);
+
+  const run = async (forceRefresh = false) => {
+    const headers = new Headers(init.headers);
+    headers.set("authorization", `Bearer ${await squareAccessToken(env, connection, forceRefresh)}`);
+    headers.set("Square-Version", SQUARE_API_VERSION);
+    if (init.body) headers.set("content-type", "application/json");
+    return fetch(`${squareBaseUrl(env)}${path}`, { ...init, headers });
+  };
+
+  let response = await run(false);
+  if (response.status === 401) response = await run(true);
+  const data = await response.json().catch(() => ({})) as T & SquareErrorPayload;
+  return { response, data, connection };
+}
+
+async function authorizeSquarePayment(
+  env: OrderingEnv,
+  payment: { id: string; sourceId: string; totalCents: number },
+) {
+  const result = await squareApiRequest<{
+    payment?: { id?: string; status?: string };
+  }>(env, "/v2/payments", {
+    method: "POST",
+    body: JSON.stringify({
+      source_id: payment.sourceId,
+      idempotency_key: `wisense-${payment.id}-${randomToken().slice(0, 16)}`,
+      amount_money: { amount: payment.totalCents, currency: "USD" },
+      autocomplete: false,
+      delay_action: "CANCEL",
+      location_id: (await getSquareConnection(env))?.location_id,
+      reference_id: payment.id,
+      note: `Jigsy's Sandbox pickup ${payment.id}`,
+    }),
+  });
+  if (!result.response.ok || !result.data.payment?.id || result.data.payment.status !== "APPROVED") {
+    throw new SquarePaymentError(
+      squarePaymentMessage(result.data, "Square could not authorize the Sandbox test payment."),
+      402,
+    );
+  }
+  return result.data.payment.id;
+}
+
+async function settleSquarePayment(env: OrderingEnv, paymentId: string, action: "complete" | "cancel") {
+  const expected = action === "complete" ? "COMPLETED" : "CANCELED";
+  const attempt = await squareApiRequest<{ payment?: { status?: string } }>(
+    env,
+    `/v2/payments/${encodeURIComponent(paymentId)}/${action}`,
+    { method: "POST", body: "{}" },
+  );
+  if (attempt.response.ok && attempt.data.payment?.status === expected) return;
+
+  const current = await squareApiRequest<{ payment?: { status?: string } }>(
+    env,
+    `/v2/payments/${encodeURIComponent(paymentId)}`,
+  );
+  if (current.response.ok && current.data.payment?.status === expected) return;
+  throw new SquarePaymentError(
+    squarePaymentMessage(
+      attempt.data,
+      action === "complete"
+        ? "Square could not capture the authorized Sandbox payment. The order was not accepted."
+        : "Square could not cancel the Sandbox authorization. The order was not rejected.",
+    ),
+  );
+}
+
+async function publicSquareConfig(env: OrderingEnv) {
+  const settings = await getSettings(env);
+  const connection = settings.squareConnected ? await getSquareConnection(env) : null;
+  const enabled = Boolean(
+    settings.paymentMode === "square"
+    && env.SQUARE_ENV !== "production"
+    && connection
+    && env.SQUARE_APPLICATION_ID,
+  );
+  return {
+    enabled,
+    environment: "sandbox",
+    applicationId: enabled ? env.SQUARE_APPLICATION_ID : null,
+    locationId: enabled ? connection?.location_id : null,
+    currency: "USD",
+  };
+}
+
 function squareStatus(connection: SquareConnectionRow | null, env: OrderingEnv) {
   let scopes: string[] = [];
   if (connection) {
@@ -667,6 +928,29 @@ function squareStatus(connection: SquareConnectionRow | null, env: OrderingEnv) 
     expiresAt: connection?.expires_at ?? null,
     scopes,
   };
+}
+
+async function staffSquareStatus(env: OrderingEnv) {
+  const [connection, settings] = await Promise.all([getSquareConnection(env), getSettings(env)]);
+  return { ...squareStatus(connection, env), paymentMode: settings.paymentMode };
+}
+
+async function setSquarePaymentMode(request: Request, env: OrderingEnv) {
+  const body = await request.json().catch(() => ({})) as { enabled?: unknown };
+  if (typeof body.enabled !== "boolean") return json({ error: "Choose whether Sandbox checkout is enabled." }, 400);
+  const settings = await getSettings(env);
+  if (body.enabled) {
+    const connection = await getSquareConnection(env);
+    if (!connection || !settings.squareConnected) {
+      return json({ error: "Connect Square Sandbox before enabling test checkout." }, 409);
+    }
+    if (env.SQUARE_ENV === "production") {
+      return json({ error: "This control is restricted to Square Sandbox." }, 409);
+    }
+  }
+  const next = { ...settings, paymentMode: body.enabled ? "square" as const : "manual" as const };
+  await saveSettings(env, next);
+  return json({ settings: publicSettings(next), status: await staffSquareStatus(env) });
 }
 
 async function beginSquareConnect(request: Request, env: OrderingEnv) {
@@ -823,7 +1107,7 @@ async function disconnectSquare(env: OrderingEnv) {
   await env.DB.prepare("DELETE FROM square_connections WHERE restaurant_id = ?").bind(RESTAURANT_ID).run();
   const settings = await getSettings(env);
   await saveSettings(env, { ...settings, squareConnected: false, paymentMode: "manual" });
-  return json({ ok: true, status: squareStatus(null, env) });
+  return json({ ok: true, status: await staffSquareStatus(env) });
 }
 
 export async function handleOrderingApi(request: Request, env: OrderingEnv): Promise<Response> {
@@ -837,6 +1121,9 @@ export async function handleOrderingApi(request: Request, env: OrderingEnv): Pro
     }
     if (url.pathname === "/api/public/settings" && request.method === "GET") {
       return json({ settings: publicSettings(await getSettings(env)) });
+    }
+    if (url.pathname === "/api/public/square-config" && request.method === "GET") {
+      return json({ square: await publicSquareConfig(env) });
     }
     if (url.pathname === "/api/square/oauth/callback" && request.method === "GET") {
       return completeSquareConnect(request, url, env);
@@ -870,13 +1157,16 @@ export async function handleOrderingApi(request: Request, env: OrderingEnv): Pro
         return updateSettings(request, env);
       }
       if (url.pathname === "/api/staff/square/status" && request.method === "GET") {
-        return json({ status: squareStatus(await getSquareConnection(env), env) });
+        return json({ status: await staffSquareStatus(env) });
       }
       if (url.pathname === "/api/staff/square/connect" && request.method === "GET") {
         return beginSquareConnect(request, env);
       }
       if (url.pathname === "/api/staff/square/disconnect" && request.method === "POST") {
         return disconnectSquare(env);
+      }
+      if (url.pathname === "/api/staff/square/payment-mode" && request.method === "POST") {
+        return setSquarePaymentMode(request, env);
       }
       const staffOrderMatch = url.pathname.match(/^\/api\/staff\/orders\/([^/]+)$/);
       if (staffOrderMatch && request.method === "PATCH") {

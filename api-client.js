@@ -36,6 +36,9 @@
       var data = await request("/api/public/settings");
       return updateLocalSettings(data.settings);
     },
+    async loadPublicSquareConfig() {
+      return (await request("/api/public/square-config")).square;
+    },
     async submitOrder(order) {
       return (await request("/api/orders", {
         method: "POST",
@@ -85,6 +88,12 @@
     },
     async disconnectSquare() {
       return request("/api/staff/square/disconnect", { method: "POST", body: "{}" });
+    },
+    async setSquarePaymentMode(enabled) {
+      return request("/api/staff/square/payment-mode", {
+        method: "POST",
+        body: JSON.stringify({ enabled: Boolean(enabled) })
+      });
     }
   };
 })();

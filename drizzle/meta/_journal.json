@@ -15,6 +15,13 @@
       "when": 1784916114666,
       "tag": "0001_bitter_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784918603762,
+      "tag": "0002_talented_mordo",
+      "breakpoints": true
     }
   ]
 }

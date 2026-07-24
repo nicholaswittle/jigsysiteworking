@@ -171,9 +171,17 @@
           <button class="secondary-button" id="disconnectSquare" type="button" hidden>Disconnect test account</button>
         </div>
       </div>
+      <div class="square-checkout-control" id="squareCheckoutControl" hidden>
+        <div>
+          <span class="square-status" id="squareCheckoutBadge">Checkout off</span>
+          <h3>Sandbox card checkout</h3>
+          <p>When enabled, customers enter a Square test card. Submitting authorizes the total, Accept &amp; print captures it, and Reject voids it.</p>
+        </div>
+        <button class="primary-button" id="toggleSquareCheckout" type="button">Enable test checkout</button>
+      </div>
       <div class="sandbox-note">
-        <strong>What this step does</strong>
-        <p>It securely authorizes this website to see the selected test location and prepares the app for a later fake-card checkout test. Customer checkout still says “pay at pickup,” and Square payment processing stays off until that separate step is built and verified.</p>
+        <strong>Sandbox safety</strong>
+        <p>This uses Square’s isolated test environment and test card numbers only. It cannot charge a real card. Switching checkout off immediately returns customer orders to manual pay at pickup.</p>
       </div>
     </section>
   </main>

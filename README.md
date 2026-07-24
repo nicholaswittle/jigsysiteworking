@@ -34,12 +34,12 @@ restaurant-information website. Reopening orders restores those links. The
 setting is shared through the hosted database so every customer sees the same
 state.
 
-The current payment mode is deliberately **manual / pay at pickup**. Only
-orders staff marks paid and completed count toward the $0.99 WiSense fee.
-The staff Payments tab can connect a Square Sandbox test business through
-OAuth. Tokens stay server-side and are encrypted in the database. Connecting a
-test account does not enable customer card checkout; that remains a separate
-Sandbox milestone.
+The default payment mode is **manual / pay at pickup**. Only orders staff marks
+paid and completed count toward the $0.99 WiSense fee. The staff Payments tab
+can connect a Square Sandbox test business through OAuth, then independently
+turn Sandbox card checkout on or off. In Sandbox card mode, checkout authorizes
+the test payment, staff acceptance captures it, and rejection voids it. Tokens
+stay server-side and are encrypted in the database.
 
 See `docs/PRINTER-AND-ORDER-FLOW.md` for the proposed two-screen production
 architecture and receipt-printer options. See
