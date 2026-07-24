@@ -94,7 +94,8 @@
   var KEYS = {
     cart: "jigsyDemoCart",
     orders: "jigsyDemoOrders",
-    settings: "jigsyDemoSettings"
+    settings: "jigsyDemoSettings",
+    customerOrder: "jigsyDemoCustomerOrder"
   };
 
   function read(key, fallback) {

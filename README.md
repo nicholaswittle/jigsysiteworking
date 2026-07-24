@@ -23,6 +23,12 @@ wings, stromboli and flatbreads, starters, salads, and subs and platters.
 Peanut Butter Pie remains on the website board but is not offered online until
 an owner-confirmed price is available.
 
+The customer page prominently mirrors the staff-set pickup estimate and keeps a
+persistent status card for the latest request. In the browser-local demo it
+changes from Waiting to Accepted or Not accepted when staff responds in the
+same browser. A production pilot must use the shared database and send the same
+outcome by SMS.
+
 See `docs/PRINTER-AND-ORDER-FLOW.md` for the proposed two-screen production
 architecture and receipt-printer options.
 

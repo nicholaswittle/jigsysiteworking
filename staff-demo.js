@@ -386,6 +386,7 @@
   document.getElementById("resetDemo").addEventListener("click", function () {
     demo.write(demo.keys.orders, []);
     demo.write(demo.keys.cart, []);
+    demo.write(demo.keys.customerOrder, null);
     demo.write(demo.keys.settings, { paused: false, prepMinutes: 25, soldOut: [] });
     renderControls();
     renderOrders();

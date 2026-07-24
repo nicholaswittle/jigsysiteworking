@@ -18,6 +18,12 @@ availability tab includes every item in the online ordering menu so staff can
 turn ordering off for sold-out items. Category tabs keep the 52-item control
 surface compact and mirror the customer ordering categories.
 
+The customer ordering page displays that estimate prominently. After a request
+is sent, a persistent status card shows Waiting, Accepted, or Not accepted. A
+production pilot should update that card through the shared database and send
+the same accepted/rejected result to the supplied phone number by SMS so the
+customer does not need to keep the page open.
+
 The current concept demo uses browser-local storage, so its two views only share
 orders inside the same browser. A real pilot must replace that local storage
 with a hosted database and add staff authentication.

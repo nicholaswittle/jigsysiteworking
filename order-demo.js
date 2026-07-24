@@ -93,7 +93,38 @@
     state.classList.toggle("is-paused", settings.paused);
     copy.textContent = settings.paused
       ? "Online pickup paused by staff"
-      : "Pickup demo available - estimated " + settings.prepMinutes + " minutes";
+      : "About " + settings.prepMinutes + " minutes";
+  }
+
+  function renderOrderStatus() {
+    var orderId = demo.read(demo.keys.customerOrder, "");
+    var orders = demo.read(demo.keys.orders, []);
+    var order = orders.find(function (item) { return item.id === orderId; });
+    var panel = document.getElementById("orderStatusPanel");
+    if (!order) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    var card = document.getElementById("orderStatusCard");
+    var badge = document.getElementById("orderStatusBadge");
+    var title = document.getElementById("orderStatusTitle");
+    var copy = document.getElementById("orderStatusCopy");
+    card.setAttribute("data-status", order.status);
+    if (order.status === "Accepted") {
+      badge.textContent = "Accepted";
+      title.textContent = order.id + " is confirmed";
+      copy.textContent = "Jigsy’s accepted your order. Plan for pickup in about " +
+        order.pickupMinutes + " minutes and pay " + demo.money(order.totals.total) + " at the counter.";
+    } else if (order.status === "Rejected") {
+      badge.textContent = "Not accepted";
+      title.textContent = order.id + " could not be accepted";
+      copy.textContent = "Jigsy’s was unable to take this request. You will not be charged the online ordering fee. Please call the restaurant if you need help.";
+    } else {
+      badge.textContent = "Waiting";
+      title.textContent = order.id + " was sent to Jigsy’s";
+      copy.textContent = "This request is not confirmed yet. Keep this page open—the status will change here when staff accepts or rejects it.";
+    }
   }
 
   function optionMarkup(product) {
@@ -307,12 +338,14 @@
     };
     orders.unshift(order);
     demo.write(demo.keys.orders, orders);
+    demo.write(demo.keys.customerOrder, id);
     cart = [];
     renderCart();
+    renderOrderStatus();
     closeDialog(checkoutDialog);
     document.getElementById("successCopy").textContent =
-      "Pickup request " + id + " is waiting in the staff console. Jigsy's would accept it, print the kitchen ticket, and collect " +
-      demo.money(order.totals.total) + " at pickup.";
+      "Pickup request " + id + " is waiting in the staff console. Keep this order page open to see Accepted or Not accepted. " +
+      "A production version would also send that confirmation by text message.";
     openDialog(successDialog);
   });
 
@@ -334,6 +367,7 @@
     renderServiceState();
     renderProducts();
     renderCart();
+    renderOrderStatus();
   });
   window.addEventListener("jigsy-demo-change", function (event) {
     if (event.detail.key === demo.keys.settings) {
@@ -341,10 +375,14 @@
       renderProducts();
       renderCart();
     }
+    if (event.detail.key === demo.keys.orders || event.detail.key === demo.keys.customerOrder) {
+      renderOrderStatus();
+    }
   });
 
   renderTabs();
   renderProducts();
   renderServiceState();
   renderCart();
+  renderOrderStatus();
 })();

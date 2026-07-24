@@ -136,10 +136,26 @@ h1 {
   padding: 10px 13px;
   border: 1px solid rgba(255,255,255,.18);
   background: rgba(0,0,0,.22);
-  font: 750 0.78rem/1.2 var(--display);
+  font-family: var(--display);
 }
+.service-state small, .service-state strong { display: block; }
+.service-state small { margin-bottom: 3px; color: #d6c4af; font-size: .65rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.service-state strong { font-size: 1.02rem; line-height: 1.1; }
 .state-dot { width: 9px; height: 9px; border-radius: 50%; background: #62a873; }
 .service-state.is-paused .state-dot { background: #e5a244; }
+
+.order-status-shell { max-width: 1180px; margin: 0 auto; padding: 22px 22px 0; }
+.order-status-card { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: start; border: 1px solid #d6bd72; background: #fff1c4; padding: 18px 20px; }
+.order-status-card .eyebrow { margin-bottom: 6px; color: #6e5412; }
+.order-status-card h2 { margin: 0 0 6px; font-size: 1.35rem; }
+.order-status-card p:last-child { margin: 0; color: var(--muted); }
+.order-status-badge { padding: 7px 9px; background: #e9cf80; color: #5f470b; font: 850 .66rem/1 var(--display); text-transform: uppercase; letter-spacing: .06em; }
+.order-status-card[data-status="Accepted"] { border-color: #94b69b; background: #e5f1e6; }
+.order-status-card[data-status="Accepted"] .eyebrow { color: #285d34; }
+.order-status-card[data-status="Accepted"] .order-status-badge { background: #b8d6bd; color: #285d34; }
+.order-status-card[data-status="Rejected"] { border-color: #d6aaa4; background: #f6e8e5; }
+.order-status-card[data-status="Rejected"] .eyebrow { color: #7b241b; }
+.order-status-card[data-status="Rejected"] .order-status-badge { background: #e8c6c1; color: #7b241b; }
 
 .layout {
   max-width: 1180px;
@@ -451,6 +467,7 @@ h1 {
   .report-actions { display: grid; }
   .availability-head { align-items: stretch; flex-direction: column; }
   .availability-count { align-self: flex-start; }
+  .order-status-card { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }

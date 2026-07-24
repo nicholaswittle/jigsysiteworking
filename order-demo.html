@@ -28,7 +28,21 @@
         <p class="eyebrow">Direct pickup - concept preview</p>
         <h1>Order the tray.<br>Skip the phone wait.</h1>
         <p class="hero-copy">Send a pickup request without entering a card. Jigsy's accepts it, prints a kitchen ticket, and collects payment at the counter.</p>
-        <div class="service-state" id="serviceState"><span class="state-dot"></span><span id="serviceStateText">Pickup demo available</span></div>
+        <div class="service-state" id="serviceState">
+          <span class="state-dot"></span>
+          <span><small>Current pickup estimate</small><strong id="serviceStateText">About 25 minutes</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="order-status-shell" id="orderStatusPanel" aria-live="polite" hidden>
+      <div class="order-status-card" id="orderStatusCard">
+        <span class="order-status-badge" id="orderStatusBadge">Waiting</span>
+        <div>
+          <p class="eyebrow">Your latest pickup request</p>
+          <h2 id="orderStatusTitle">Waiting for Jigsy’s</h2>
+          <p id="orderStatusCopy">Your order is not confirmed until staff accepts it.</p>
+        </div>
       </div>
     </section>
 
@@ -118,7 +132,7 @@
     <div class="dialog-head">
       <div>
         <p class="eyebrow">Demo order created</p>
-        <h2 id="successTitle">Waiting for Jigsy's to accept.</h2>
+        <h2 id="successTitle">Request sent—not confirmed yet.</h2>
       </div>
       <button class="icon-button" id="successClose" type="button" aria-label="Close confirmation">×</button>
     </div>
