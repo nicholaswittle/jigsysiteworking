@@ -206,11 +206,16 @@
     var copy = document.getElementById("orderStatusCopy");
     card.setAttribute("data-status", order.status);
     if (order.status === "Completed") {
-      badge.textContent = "Completed";
-      title.textContent = order.id + " is complete";
-      copy.textContent = order.paymentMode === "square"
-        ? "This order and its Square Sandbox test payment are complete. Thank you for testing Jigsy’s direct ordering."
-        : "This order was marked paid and completed. Thank you for ordering directly from Jigsy’s.";
+      if (order.paymentMode === "square") {
+        badge.textContent = "Completed";
+        title.textContent = order.id + " is complete";
+        copy.textContent = "This order and its Square Sandbox test payment are complete. Thank you for testing Jigsy’s direct ordering.";
+      } else {
+        badge.textContent = "Confirmed";
+        title.textContent = order.id + " is confirmed";
+        copy.textContent = "Jigsy’s got your order and is preparing it. Pick up and pay " +
+          demo.money(order.totals.total) + " at the counter in about " + order.pickupMinutes + " minutes.";
+      }
     } else if (order.status === "Accepted") {
       badge.textContent = "Accepted";
       title.textContent = order.id + " is confirmed";

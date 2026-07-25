@@ -647,9 +647,9 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
   const transitions: Record<string, { from: string[]; to: string; timeField?: string; paymentStatus?: string }> = {
     accept: {
       from: ["New"],
-      to: "Accepted",
-      timeField: "accepted_at",
-      paymentStatus: existing.payment_mode === "square" ? "completed" : undefined,
+      to: "Completed",
+      timeField: "completed_at",
+      paymentStatus: "completed",
     },
     reject: { from: ["New"], to: "Rejected", timeField: "rejected_at", paymentStatus: "cancelled" },
     complete: { from: ["Accepted"], to: "Completed", timeField: "completed_at", paymentStatus: "completed" },

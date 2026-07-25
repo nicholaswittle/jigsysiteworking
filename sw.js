@@ -1,5 +1,5 @@
 /* Jigsy's staff console service worker — offline shell only. */
-const CACHE = "jigsys-staff-v1";
+const CACHE = "jigsys-staff-v2";
 const SHELL = [
   "staff-demo.html",
   "demo.css?v=20260724-square",
@@ -41,19 +41,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: serve from cache, refresh in the background.
+  // Everything else (CSS/JS/images): network-first so a redeploy never strands an open
+  // tab on stale code; fall back to cache only when the network is unavailable (offline).
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    }),
+    fetch(request)
+      .then((response) => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request)),
   );
 });

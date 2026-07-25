@@ -193,12 +193,10 @@
           action = '<button type="button" data-accept="' + order.id + '" class="primary">Accept &amp; print ticket</button>' +
             '<button type="button" data-reject="' + order.id + '" class="reject">Reject order</button>';
         } else if (order.status === "Accepted") {
-          action = '<button type="button" data-complete="' + order.id + '" class="primary">' +
-            (order.paymentMode === "square" ? "Mark order completed" : "Mark paid &amp; completed") + "</button>" +
-            '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' + refundButton;
+          action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' + refundButton;
         } else if (order.status === "Completed") {
           action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' + refundButton +
-            '<span class="fine-print">Completed orders count toward the WiSense fee report.</span>';
+            '<span class="fine-print">Accepted orders are sent to Square and count toward the WiSense fee report.</span>';
         } else if (order.status === "Refunded") {
           action = '<span class="fine-print">Refunded orders remain in the daily report and do not earn a fee.</span>';
         } else {
@@ -223,7 +221,7 @@
     document.getElementById("statNew").textContent =
       String(todayOrders.filter(function (order) { return order.status === "New"; }).length);
     document.getElementById("statAccepted").textContent =
-      String(todayOrders.filter(function (order) { return order.status === "Accepted"; }).length);
+      String(todayOrders.filter(function (order) { return order.status === "Completed"; }).length);
     document.getElementById("statRejected").textContent =
       String(todayOrders.filter(function (order) { return order.status === "Rejected"; }).length);
     var fees = completed.reduce(function (sum, order) {
@@ -399,7 +397,7 @@
     ticket.innerHTML = ticketMarkup(order);
     ticket.setAttribute("aria-hidden", "false");
     await refreshStaffData();
-    showToast(order.id + (acceptFirst ? " accepted. Opening ticket…" : " ticket ready."));
+    showToast(order.id + (acceptFirst ? " accepted &amp; sent to Square. Opening ticket…" : " ticket ready."));
     window.setTimeout(function () { window.print(); }, 80);
   }
 
