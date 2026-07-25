@@ -3,6 +3,7 @@ import menuCatalog from "../config/menu-catalog.json";
 const RESTAURANT_ID = "jigsys";
 const SESSION_COOKIE = "wisense_staff_session";
 const SQUARE_STATE_COOKIE = "wisense_square_oauth";
+const SQUARE_TAX_UID = "wisense-sales-tax";
 const SESSION_SECONDS = 12 * 60 * 60;
 const SQUARE_API_VERSION = "2026-07-15";
 const SQUARE_SCOPES = [
@@ -980,15 +981,23 @@ async function refundSquarePayment(
 }
 
 async function createSquareOrder(env: OrderingEnv, order: StoredOrderRow, connection: SquareConnectionRow) {
+  const settings = await getSettings(env);
   const items = JSON.parse(order.items_json) as Array<{ name?: string; detail?: string; price?: number }>;
-  const lineItems: Array<Record<string, unknown>> = items.map((item) => ({
+  // Sales tax applies to the food only, matching how the customer total is
+  // calculated, so the Square ticket rings up the same amount the customer saw.
+  const taxable = order.tax_cents > 0 && settings.taxRate > 0;
+  const appliedTaxes = taxable ? [{ tax_uid: SQUARE_TAX_UID }] : undefined;
+  const lineItems: Array<Record<string, unknown>> = items.map((item, index) => ({
+    uid: `item-${index}`,
     name: String(item.name ?? "Item").slice(0, 512),
     quantity: "1",
     base_price_money: { amount: Math.round(Number(item.price ?? 0) * 100), currency: "USD" },
     note: item.detail ? String(item.detail).slice(0, 500) : undefined,
+    applied_taxes: appliedTaxes,
   }));
   if (order.fee_cents > 0) {
     lineItems.push({
+      uid: "online-fee",
       name: "Online ordering fee",
       quantity: "1",
       base_price_money: { amount: order.fee_cents, currency: "USD" },
@@ -1004,6 +1013,15 @@ async function createSquareOrder(env: OrderingEnv, order: StoredOrderRow, connec
         location_id: connection.location_id,
         reference_id: order.id,
         line_items: lineItems,
+        taxes: taxable
+          ? [{
+              uid: SQUARE_TAX_UID,
+              name: "Sales tax",
+              percentage: String(Number((settings.taxRate * 100).toFixed(4))),
+              scope: "LINE_ITEM",
+              type: "ADDITIVE",
+            }]
+          : undefined,
         fulfillments: [
           {
             type: "PICKUP",
