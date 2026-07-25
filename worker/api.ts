@@ -654,6 +654,10 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
     reject: { from: ["New"], to: "Rejected", timeField: "rejected_at", paymentStatus: "cancelled" },
     complete: { from: ["Accepted"], to: "Completed", timeField: "completed_at", paymentStatus: "completed" },
     cancel: { from: ["Accepted"], to: "Cancelled", timeField: "rejected_at", paymentStatus: "cancelled" },
+    // End-of-shift no-show handling: a customer who never picked up / paid is
+    // marked Unpaid, which drops its $0.99 fee (and value) from the tracker.
+    unpaid: { from: ["Completed"], to: "Unpaid", paymentStatus: "unpaid" },
+    markpaid: { from: ["Unpaid"], to: "Completed", timeField: "completed_at", paymentStatus: "completed" },
   };
 
   if (action === "print") {

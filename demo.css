@@ -394,6 +394,7 @@ h1 {
 .status-badge[data-status="Ready"], .status-badge[data-status="Completed"] { background: #dcecdc; color: #285d34; }
 .status-badge[data-status="Cancelled"] { background: #e8e1dc; color: #61544c; }
 .status-badge[data-status="Refunded"] { background: #efdcc4; color: #7a5312; }
+.status-badge[data-status="Unpaid"] { background: #ecd7d2; color: #863b2b; }
 .order-card-body { padding: 14px 16px; display: grid; grid-template-columns: 1fr 180px; gap: 18px; }
 .order-items { margin: 0; padding-left: 18px; font-size: .87rem; }
 .order-items li { margin-bottom: 5px; }

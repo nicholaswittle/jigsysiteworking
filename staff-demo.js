@@ -127,6 +127,7 @@
     if (order.status === "Completed") return "Completed";
     if (order.status === "Cancelled") return "Cancelled";
     if (order.status === "Refunded") return "Refunded";
+    if (order.status === "Unpaid") return "Not paid";
     return "Accepted";
   }
 
@@ -196,7 +197,11 @@
           action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' + refundButton;
         } else if (order.status === "Completed") {
           action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' + refundButton +
-            '<span class="fine-print">Accepted orders are sent to Square and count toward the WiSense fee report.</span>';
+            '<button type="button" data-unpaid="' + order.id + '" class="reject">Didn’t pay</button>' +
+            '<span class="fine-print">Counts toward the WiSense fee report. Mark “Didn’t pay” for a no-show to remove the $0.99.</span>';
+        } else if (order.status === "Unpaid") {
+          action = '<button type="button" data-markpaid="' + order.id + '" class="primary">Mark as paid</button>' +
+            '<span class="fine-print">No fee counted — customer did not pick up or pay.</span>';
         } else if (order.status === "Refunded") {
           action = '<span class="fine-print">Refunded orders remain in the daily report and do not earn a fee.</span>';
         } else {
@@ -432,6 +437,27 @@
     }
   }
 
+  async function markUnpaid(id) {
+    if (!window.confirm("Mark " + id + " as not paid? This removes its $0.99 from the WiSense fee report.")) return;
+    try {
+      await api.updateOrder(id, "unpaid");
+      await refreshStaffData();
+      showToast(id + " marked not paid. $0.99 removed.");
+    } catch (error) {
+      handleStaffError(error);
+    }
+  }
+
+  async function markPaid(id) {
+    try {
+      await api.updateOrder(id, "markpaid");
+      await refreshStaffData();
+      showToast(id + " marked paid. $0.99 restored.");
+    } catch (error) {
+      handleStaffError(error);
+    }
+  }
+
   function setConnection(connected) {
     var status = document.getElementById("connectionStatus");
     status.textContent = connected ? "Live · checking for orders" : "Connection interrupted";
@@ -539,11 +565,15 @@
     var reprint = event.target.closest("[data-print]");
     var complete = event.target.closest("[data-complete]");
     var refund = event.target.closest("[data-refund]");
+    var unpaid = event.target.closest("[data-unpaid]");
+    var markpaid = event.target.closest("[data-markpaid]");
     if (accept) printOrder(accept.getAttribute("data-accept"), true);
     if (reject) rejectOrder(reject.getAttribute("data-reject"));
     if (reprint) printOrder(reprint.getAttribute("data-print"), false);
     if (complete) completeOrder(complete.getAttribute("data-complete"));
     if (refund) refundOrder(refund.getAttribute("data-refund"));
+    if (unpaid) markUnpaid(unpaid.getAttribute("data-unpaid"));
+    if (markpaid) markPaid(markpaid.getAttribute("data-markpaid"));
   });
   document.querySelector(".order-filters").addEventListener("click", function (event) {
     var button = event.target.closest("[data-filter]");

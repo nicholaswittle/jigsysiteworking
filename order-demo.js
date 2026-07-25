@@ -205,7 +205,7 @@
     var title = document.getElementById("orderStatusTitle");
     var copy = document.getElementById("orderStatusCopy");
     card.setAttribute("data-status", order.status);
-    if (order.status === "Completed") {
+    if (order.status === "Completed" || order.status === "Unpaid") {
       if (order.paymentMode === "square") {
         badge.textContent = "Completed";
         title.textContent = order.id + " is complete";
