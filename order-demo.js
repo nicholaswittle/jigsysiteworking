@@ -22,6 +22,84 @@
   var drawerBackdrop = document.getElementById("drawerBackdrop");
   var toast = document.getElementById("toast");
   var statusLoading = false;
+  var lastKnownStatus = null;
+  var chimeTrack = null;
+
+  // Small two-tone chime, generated rather than shipped as a binary asset. Played
+  // through an <audio> element so it still sounds when the tab is in background.
+  function buildChime() {
+    var rate = 22050;
+    var tones = [{ frequency: 660, seconds: 0.18 }, { frequency: 880, seconds: 0.34 }];
+    var totalSamples = tones.reduce(function (sum, tone) {
+      return sum + Math.round(rate * tone.seconds);
+    }, 0);
+    var bytes = new ArrayBuffer(44 + totalSamples * 2);
+    var view = new DataView(bytes);
+    var writeText = function (offset, text) {
+      for (var index = 0; index < text.length; index += 1) {
+        view.setUint8(offset + index, text.charCodeAt(index));
+      }
+    };
+    writeText(0, "RIFF");
+    view.setUint32(4, 36 + totalSamples * 2, true);
+    writeText(8, "WAVEfmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeText(36, "data");
+    view.setUint32(40, totalSamples * 2, true);
+    var cursor = 0;
+    tones.forEach(function (tone) {
+      var samples = Math.round(rate * tone.seconds);
+      for (var index = 0; index < samples; index += 1) {
+        var seconds = index / rate;
+        var envelope = Math.min(1, seconds / 0.01, (tone.seconds - seconds) / 0.08);
+        var amplitude = Math.sin(2 * Math.PI * tone.frequency * seconds) * 0.5 * Math.max(0, envelope);
+        view.setInt16(44 + (cursor + index) * 2, amplitude * 32767, true);
+        }
+      cursor += samples;
+    });
+    return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  }
+
+  function playChime() {
+    try {
+      if (!chimeTrack) chimeTrack = new Audio(buildChime());
+      chimeTrack.currentTime = 0;
+      var started = chimeTrack.play();
+      if (started && started.catch) started.catch(function () {});
+    } catch {
+      // Sound is a nicety here; the status card is the real signal.
+    }
+  }
+
+  function announceStatusChange(order) {
+    var settled = order.status === "Completed" || order.status === "Accepted" || order.status === "Unpaid";
+    var declined = order.status === "Rejected" || order.status === "Cancelled";
+    if (!settled && !declined) return;
+    var title = settled
+      ? "Jigsy’s confirmed " + order.id
+      : order.id + " was not accepted";
+    var body = settled
+      ? (order.paymentMode === "square"
+          ? "Your order is confirmed. Pickup in about " + order.pickupMinutes + " minutes."
+          : "Pickup in about " + order.pickupMinutes + " minutes. Pay " +
+            demo.money(order.totals.total) + " at the counter.")
+      : "Jigsy’s could not take this order. Please call the restaurant if you need help.";
+    playChime();
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(title, { body: body, tag: order.id, requireInteraction: true });
+      } catch {
+        // Some browsers only allow notifications from a service worker.
+      }
+    }
+    showToast(title);
+  }
   var squareConfig = { enabled: false };
   var squareCard = null;
   var squareCardKey = "";
@@ -200,6 +278,12 @@
     }
     statusLoading = false;
     panel.hidden = false;
+    // Only announce real changes: the first sighting of an order (including a
+    // page reload after it was already answered) just seeds the baseline.
+    if (lastKnownStatus !== null && order.status !== lastKnownStatus) {
+      announceStatusChange(order);
+    }
+    lastKnownStatus = order.status;
     var card = document.getElementById("orderStatusCard");
     var badge = document.getElementById("orderStatusBadge");
     var title = document.getElementById("orderStatusTitle");
@@ -436,6 +520,20 @@
 
   document.getElementById("checkoutForm").addEventListener("submit", async function (event) {
     event.preventDefault();
+    // Prime the chime while the submit gesture is still live, so the accepted
+    // alert can play later without one. Browsers spend the gesture on first await.
+    try {
+      if (!chimeTrack) chimeTrack = new Audio(buildChime());
+      chimeTrack.muted = true;
+      var priming = chimeTrack.play();
+      Promise.resolve(priming).then(function () {
+        chimeTrack.pause();
+        chimeTrack.currentTime = 0;
+        chimeTrack.muted = false;
+      }).catch(function () { chimeTrack.muted = false; });
+    } catch {
+      // Sound is optional; the status card still updates.
+    }
     var checkoutForm = event.currentTarget;
     var submitButton = checkoutForm.querySelector('button[type="submit"]');
     submitButton.disabled = true;
@@ -515,6 +613,11 @@
     }
     demo.write(demo.keys.customerOrder, { id: order.id, token: order.publicToken });
     cart = [];
+    // Baseline the new order so acceptance registers as a change worth announcing.
+    lastKnownStatus = order.status;
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(function () {});
+    }
     renderCart();
     renderOrderStatus();
     closeDialog(checkoutDialog);
