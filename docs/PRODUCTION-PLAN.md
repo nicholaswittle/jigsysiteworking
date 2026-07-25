@@ -77,6 +77,65 @@ Then the restaurant owner authorizes WiSense's app against their Square account.
 
 ---
 
+## 3. On-site test: does the register surface the order?
+
+### The design assumption
+
+The Square push is **additive, not load-bearing**. The app is self-sufficient:
+
+- Orders live in our own D1 database (source of truth)
+- Staff are alerted by our own console (repeating sound + browser notifications)
+- The kitchen ticket prints from our own "Print ticket" button
+
+So if Square never surfaces the order at the register, **no business operation
+stops** — the kitchen already has its ticket and the cashier rings the order up as
+a normal walk-in. Keep it this way: do not let the Square sync become a dependency
+the restaurant cannot operate without.
+
+### What is genuinely unverified
+
+We create an unpaid order (`POST /v2/orders`, state `OPEN`, `PICKUP` fulfillment in
+state `PROPOSED`). API-created orders reliably appear in **Dashboard → Orders**.
+What is *not* certain is whether a cashier can pull that order onto the register to
+take payment — that varies by Square product tier (Square for Restaurants vs. plain
+POS) and settings, and **cannot be determined from Sandbox** (no physical terminal).
+
+Relevant clue: the owner's current workflow is "hit save ticket, type the name, it
+prints" — that is Square's **Open Tickets** feature. The crux is whether our API
+order lands in *their* Open Tickets list.
+
+### The 10-minute test (run on their live hardware, after OAuth connect)
+
+Push one test order from the app, then check in this order:
+
+- [ ] **Open Tickets** on the register — does it appear, named with the customer?
+- [ ] **Orders** tab on the POS app — does it appear, and is there a
+      "Take payment" / "Charge" action?
+- [ ] **Dashboard → Orders** — it will be here regardless; this is the fallback record.
+- [ ] Does the kitchen printer **auto-print** it (Star TSP100 / Square printer profile)?
+- [ ] Does the ticket show the size/toppings note and the customer name legibly?
+- [ ] Do the Square totals match the app totals exactly (food + $0.99 fee + 6% tax)?
+
+### The two likely outcomes
+
+| Outcome | What it means | Action |
+|---|---|---|
+| **Order appears in Open Tickets / Orders with a payment action** | Bonus achieved: staff tap the order and take payment against it | Consider dropping the app's backup ticket if Square also auto-prints |
+| **Order only lands in Dashboard → Orders** | The register ignores it for live payment | Fallback workflow: kitchen works from our printed ticket, cashier rings it as a walk-in. Still removes the phone call and manual entry |
+
+Only invest in a heavier integration (mapping line items to their Square catalog, or
+a Terminal/Invoice flow) if the restaurant actually wants the register to pull the
+order up and outcome 2 is what we get.
+
+### Related known gap
+
+Line items are sent **ad-hoc** (`item_type: ITEM`), not linked to the restaurant's
+Square catalog. Orders print correctly, but they will not roll up into per-item sales
+or inventory reporting. Fixing that needs their actual Square catalog — decide with
+the owner whether item-level reporting matters to them.
+
+---
+
 ## Related
 
 - `docs/CLOUDFLARE-DEPLOY.md` — deploy/runbook
