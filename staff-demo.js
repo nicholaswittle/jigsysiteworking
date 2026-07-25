@@ -20,12 +20,17 @@
   var waitingSince = new Map();
   var audioContext = null;
   var alertTracks = {};
+  var unlockPromise = null;
   var wakeLock = null;
 
-  function showToast(message) {
+  var toastTimer = null;
+  function showToast(message, holdMs) {
     toast.textContent = message;
     toast.classList.add("is-visible");
-    window.setTimeout(function () { toast.classList.remove("is-visible"); }, 1800);
+    if (toastTimer) window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(function () {
+      toast.classList.remove("is-visible");
+    }, holdMs || 5000);
   }
 
   async function updateSettings(patch) {
@@ -192,6 +197,13 @@
             ? demo.money(order.totals.total) + " paid · completed"
             : demo.money(order.totals.total) + " due at pickup";
         }
+        // Lets staff confirm at a glance that the order reached Square.
+        var squareLine = "";
+        if (order.status === "Completed" || order.status === "Unpaid") {
+          squareLine = order.squareOrderId
+            ? '<br><span class="square-sync is-sent">✓ Sent to Square</span>'
+            : '<br><span class="square-sync is-missing">Not sent to Square</span>';
+        }
         var refundable = order.paymentMode === "square" && order.paymentStatus === "completed";
         var refundButton = refundable
           ? '<button type="button" data-refund="' + order.id + '" class="reject">Refund payment</button>'
@@ -221,7 +233,7 @@
           '<div class="order-card-body"><ul class="order-items">' + items + '</ul><div class="order-customer"><strong>' +
           demo.escapeHTML(order.customer.name) + '</strong><br>' + demo.escapeHTML(order.customer.phone) +
           (order.notes ? "<br>Note: " + demo.escapeHTML(order.notes) : "") +
-          '<br><strong>' + paymentLine + '</strong></div></div>' +
+          '<br><strong>' + paymentLine + '</strong>' + squareLine + '</div></div>' +
           '<div class="order-actions">' + action + '</div></article>';
       }).join("");
     }
@@ -564,27 +576,27 @@
     return alertTracks[key];
   }
 
+  // Priming each element inside a gesture lets later alerts play on their own.
+  // The prime must finish before any real alert plays, otherwise it can pause or
+  // mute the alert mid-tone, so callers share this one promise.
   function unlockAudio() {
+    if (unlockPromise) return unlockPromise;
     ensureAudioContext();
-    // Priming each element inside a gesture lets later alerts play on their own.
-    ["normal", "urgent"].forEach(function (key) {
+    unlockPromise = Promise.all(["normal", "urgent"].map(function (key) {
       var element = alertTrack(key === "urgent");
-      if (element.dataset.primed) return;
-      element.dataset.primed = "1";
-      var restore = element.volume;
-      element.volume = 0;
-      var primed = element.play();
-      if (primed && primed.then) {
-        primed.then(function () {
+      element.muted = true;
+      var started = element.play();
+      return Promise.resolve(started)
+        .then(function () {
           element.pause();
           element.currentTime = 0;
-          element.volume = restore;
-        }).catch(function () {
-          element.volume = restore;
-          delete element.dataset.primed;
+          element.muted = false;
+        })
+        .catch(function () {
+          element.muted = false;
         });
-      }
-    });
+    }));
+    return unlockPromise;
   }
   ["pointerdown", "keydown"].forEach(function (type) {
     window.addEventListener(type, unlockAudio, { capture: true });
@@ -618,16 +630,20 @@
   // tell staff that sound is blocked instead of failing silently.
   function playBeeps(count) {
     var element = alertTrack(count > 1);
-    try {
-      element.currentTime = 0;
-      var started = element.play();
-      if (started && started.catch) {
-        started.catch(function () { playWebAudioFallback(count); });
+    // Wait for any in-flight prime so it cannot mute or pause this tone.
+    Promise.resolve(unlockPromise).then(function () {
+      try {
+        element.muted = false;
+        element.currentTime = 0;
+        var started = element.play();
+        if (started && started.catch) {
+          started.catch(function () { playWebAudioFallback(count); });
+        }
+      } catch {
+        playWebAudioFallback(count);
       }
-      return true;
-    } catch {
-      return playWebAudioFallback(count);
-    }
+    });
+    return true;
   }
 
   function playOrderAlert(order, options) {
@@ -650,7 +666,8 @@
             (repeat && waitingMinutes >= 1 ? " · waiting " + waitingMinutes + " min" : ""),
           tag: order.id,
           renotify: true,
-          requireInteraction: urgent
+          // Stay on screen until staff dismiss it instead of auto-hiding.
+          requireInteraction: true
         },
       );
     }
@@ -877,27 +894,35 @@
     var alertButton = event.currentTarget;
     // This tap is the gesture that unlocks audio and the screen wake lock. Both
     // must happen before any `await`, which would spend the gesture.
-    unlockAudio();
+    var unlocking = unlockAudio();
     requestWakeLock();
+    await unlocking;
     var element = alertTrack(false);
-    element.currentTime = 0;
     var audible = true;
     try {
+      element.muted = false;
+      element.currentTime = 0;
       await element.play();
     } catch {
       audible = playWebAudioFallback(1);
     }
     if (!audible) {
+      alertButton.dataset.alerts = "blocked";
+      alertButton.textContent = "Sound blocked";
       showToast("Sound is blocked by this browser. Allow audio for this site, then tap again.");
       return;
     }
     if (!("Notification" in window)) {
+      alertButton.dataset.alerts = "on";
+      alertButton.textContent = "Alerts on";
       showToast("Sound alerts are on. This browser does not support system notifications.");
       return;
     }
     var permission = await Notification.requestPermission();
-    alertButton.textContent = permission === "granted" ? "Alerts enabled" : "Alerts blocked";
-    showToast(permission === "granted"
+    var granted = permission === "granted";
+    alertButton.dataset.alerts = granted ? "on" : "blocked";
+    alertButton.textContent = granted ? "Alerts on" : "Alerts blocked";
+    showToast(granted
       ? "Alerts on. Waiting orders repeat every 30 seconds until answered."
       : "Sound alerts are on. Allow notifications in browser settings for banners.");
   });
