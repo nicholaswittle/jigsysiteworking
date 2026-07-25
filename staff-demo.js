@@ -19,6 +19,7 @@
   var alertedAt = new Map();
   var waitingSince = new Map();
   var audioContext = null;
+  var alertTracks = {};
   var wakeLock = null;
 
   function showToast(message) {
@@ -508,52 +509,124 @@
     }
   }
 
-  function unlockAudio() {
-    var context = ensureAudioContext();
-    if (!context) return;
-    try {
-      // A silent blip completes the unlock handshake on stricter browsers.
-      var source = context.createBufferSource();
-      source.buffer = context.createBuffer(1, 1, 22050);
-      source.connect(context.destination);
-      source.start(0);
-    } catch {
-      // Unlock is best effort; alerts still show visually.
+  // Browsers suspend an AudioContext while its tab is hidden, which silenced the
+  // repeat alarm exactly when staff were looking elsewhere. Media elements keep
+  // playing in background tabs, so the alert tone is a generated WAV played
+  // through an <audio> element, with Web Audio kept only as a fallback.
+  function buildBeepTrack(beeps, frequency) {
+    var rate = 22050;
+    var beepSeconds = 0.3;
+    var gapSeconds = 0.14;
+    var totalSamples = Math.round(rate * (beeps * beepSeconds + (beeps - 1) * gapSeconds));
+    var bytes = new ArrayBuffer(44 + totalSamples * 2);
+    var view = new DataView(bytes);
+    var writeText = function (offset, text) {
+      for (var index = 0; index < text.length; index += 1) {
+        view.setUint8(offset + index, text.charCodeAt(index));
+      }
+    };
+    writeText(0, "RIFF");
+    view.setUint32(4, 36 + totalSamples * 2, true);
+    writeText(8, "WAVEfmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeText(36, "data");
+    view.setUint32(40, totalSamples * 2, true);
+
+    var beepSamples = Math.round(rate * beepSeconds);
+    var strideSamples = Math.round(rate * (beepSeconds + gapSeconds));
+    for (var sample = 0; sample < totalSamples; sample += 1) {
+      var position = sample % strideSamples;
+      var amplitude = 0;
+      if (position < beepSamples) {
+        var seconds = position / rate;
+        // Short fade in/out keeps the tone from clicking.
+        var envelope = Math.min(1, seconds / 0.01, (beepSeconds - seconds) / 0.05);
+        amplitude = Math.sin(2 * Math.PI * frequency * seconds) * 0.6 * Math.max(0, envelope);
+      }
+      view.setInt16(44 + sample * 2, amplitude * 32767, true);
     }
+    return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  }
+
+  function alertTrack(urgent) {
+    var key = urgent ? "urgent" : "normal";
+    if (!alertTracks[key]) {
+      var element = new Audio(buildBeepTrack(urgent ? 3 : 1, urgent ? 988 : 880));
+      element.preload = "auto";
+      alertTracks[key] = element;
+    }
+    return alertTracks[key];
+  }
+
+  function unlockAudio() {
+    ensureAudioContext();
+    // Priming each element inside a gesture lets later alerts play on their own.
+    ["normal", "urgent"].forEach(function (key) {
+      var element = alertTrack(key === "urgent");
+      if (element.dataset.primed) return;
+      element.dataset.primed = "1";
+      var restore = element.volume;
+      element.volume = 0;
+      var primed = element.play();
+      if (primed && primed.then) {
+        primed.then(function () {
+          element.pause();
+          element.currentTime = 0;
+          element.volume = restore;
+        }).catch(function () {
+          element.volume = restore;
+          delete element.dataset.primed;
+        });
+      }
+    });
   }
   ["pointerdown", "keydown"].forEach(function (type) {
     window.addEventListener(type, unlockAudio, { capture: true });
   });
 
-  function playBeeps(count) {
+  function playWebAudioFallback(count) {
     var context = ensureAudioContext();
     if (!context) return false;
     try {
       for (var index = 0; index < count; index += 1) {
-        var start = context.currentTime + index * 0.34;
+        var start = context.currentTime + 0.05 + index * 0.44;
         var oscillator = context.createOscillator();
         var gain = context.createGain();
-        // Two stacked tones carry further across a noisy kitchen than one.
-        var harmonic = context.createOscillator();
         oscillator.type = "square";
-        harmonic.type = "sine";
         oscillator.frequency.value = count > 1 ? 988 : 880;
-        harmonic.frequency.value = (count > 1 ? 988 : 880) * 2;
         gain.gain.setValueAtTime(0.0001, start);
         gain.gain.exponentialRampToValueAtTime(0.45, start + 0.012);
         gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
         oscillator.connect(gain);
-        harmonic.connect(gain);
         gain.connect(context.destination);
         oscillator.start(start);
-        harmonic.start(start);
         oscillator.stop(start + 0.32);
-        harmonic.stop(start + 0.32);
       }
       return context.state === "running";
     } catch {
-      // Browser sound support varies; the visible queue remains authoritative.
       return false;
+    }
+  }
+
+  // Returns false only when the browser refuses to play at all, so callers can
+  // tell staff that sound is blocked instead of failing silently.
+  function playBeeps(count) {
+    var element = alertTrack(count > 1);
+    try {
+      element.currentTime = 0;
+      var started = element.play();
+      if (started && started.catch) {
+        started.catch(function () { playWebAudioFallback(count); });
+      }
+      return true;
+    } catch {
+      return playWebAudioFallback(count);
     }
   }
 
@@ -805,8 +878,15 @@
     // This tap is the gesture that unlocks audio and the screen wake lock. Both
     // must happen before any `await`, which would spend the gesture.
     unlockAudio();
-    var audible = playBeeps(1);
     requestWakeLock();
+    var element = alertTrack(false);
+    element.currentTime = 0;
+    var audible = true;
+    try {
+      await element.play();
+    } catch {
+      audible = playWebAudioFallback(1);
+    }
     if (!audible) {
       showToast("Sound is blocked by this browser. Allow audio for this site, then tap again.");
       return;
