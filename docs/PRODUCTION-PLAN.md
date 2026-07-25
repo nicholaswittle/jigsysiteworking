@@ -92,40 +92,66 @@ stops** — the kitchen already has its ticket and the cashier rings the order u
 a normal walk-in. Keep it this way: do not let the Square sync become a dependency
 the restaurant cannot operate without.
 
-### What is genuinely unverified
+### ANSWERED: unpaid API orders are invisible to the seller
 
-We create an unpaid order (`POST /v2/orders`, state `OPEN`, `PICKUP` fulfillment in
-state `PROPOSED`). API-created orders reliably appear in **Dashboard → Orders**.
-What is *not* certain is whether a cashier can pull that order onto the register to
-take payment — that varies by Square product tier (Square for Restaurants vs. plain
-POS) and settings, and **cannot be determined from Sandbox** (no physical terminal).
+This was researched in July 2026 and is **settled — no on-site test needed.**
+Square's Orders API documentation states:
 
-Relevant clue: the owner's current workflow is "hit save ticket, type the name, it
-prints" — that is Square's **Open Tickets** feature. The crux is whether our API
-order lands in *their* Open Tickets list.
+> "Orders with fulfillments appear on Square products (such as the Square Dashboard
+> and Point of Sale application) **only after they're paid for**."
+> — https://developer.squareup.com/docs/orders-api/fulfillments
 
-### The 10-minute test (run on their live hardware, after OAuth connect)
+A Square staff member confirmed the same on the developer forum on **7 May 2026**,
+answering a developer describing this exact payload: *"we don't currently support
+creating unpaid orders via the API that appear on the POS."*
+(https://developer.squareup.com/forums/t/inquiry-creating-unpaid-orders-in-square-pos/26028)
 
-Push one test order from the app, then check in this order:
+Therefore the orders we push on Accept are **invisible to the restaurant**. They
+exist and are retrievable through the API, but they do **not** appear on the
+register, in Open Tickets, in Order Manager, or in the Dashboard order views. No
+Square product tier or subscription changes this — the gate is payment, not plan.
 
-- [ ] **Open Tickets** on the register — does it appear, named with the customer?
-- [ ] **Orders** tab on the POS app — does it appear, and is there a
-      "Take payment" / "Charge" action?
-- [ ] **Dashboard → Orders** — it will be here regardless; this is the fallback record.
-- [ ] Does the kitchen printer **auto-print** it (Star TSP100 / Square printer profile)?
-- [ ] Does the ticket show the size/toppings note and the customer name legibly?
-- [ ] Do the Square totals match the app totals exactly (food + $0.99 fee + 6% tax)?
+Open Tickets specifically **cannot be created through the Orders API** at all
+(Square forums, Apr 2025).
 
-### The two likely outcomes
+### What every competitor does instead
 
-| Outcome | What it means | Action |
-|---|---|---|
-| **Order appears in Open Tickets / Orders with a payment action** | Bonus achieved: staff tap the order and take payment against it | Consider dropping the app's backup ticket if Square also auto-prints |
-| **Order only lands in Dashboard → Orders** | The register ignores it for live payment | Fallback workflow: kitchen works from our printed ticket, cashier rings it as a walk-in. Still removes the phone call and manual entry |
+ChowNow, Owner.com, BentoBox, Popmenu and Slice all **take the card online first**,
+which is what makes the Square push work as advertised. Owner.com's help material
+calls online payment "a requirement of the Square API." Square's **own** online
+ordering product does not offer pay-at-pickup either. Toast avoids the problem only
+because Toast *is* the POS — no cross-vendor boundary.
 
-Only invest in a heavier integration (mapping line items to their Square catalog, or
-a Terminal/Invoice flow) if the restaurant actually wants the register to pull the
-order up and outcome 2 is what we get.
+So our architecture (own DB as source of truth, own staff console, own kitchen
+ticket) is the correct answer for a pay-in-person product; we simply inherit the
+limitation competitors bought their way out of by requiring online payment.
+
+### Decision needed: what is the Square push for?
+
+Given the restaurant cannot see these orders, the `POST /v2/orders` call currently
+delivers little operational value. Options:
+
+| Option | Tradeoff |
+|---|---|
+| **Drop the push** | Simplest. The app is the system; staff ring the sale at the counter as they do today |
+| **Keep it as a silent API record** | Useful for reconciliation/reporting, but staff cannot see it — and watch for double counting when the cashier rings the sale separately |
+| **Move it to settlement** | Create the Square order when payment actually happens, avoiding a growing pile of permanently-OPEN invisible orders |
+| **Invoices API** | The only documented pay-in-person path (cashier: More → Invoices → Add payment). Clunkier UX and it will not auto-print a kitchen ticket |
+
+### Still worth testing on-site (unchanged)
+
+- [ ] Does the app's own kitchen ticket print correctly on the Star TSP100?
+- [ ] Is the size/toppings note and customer name legible on that ticket?
+- [ ] Does the real-account OAuth connect work (production has no sandbox test-seller gate)?
+- [ ] Do the app's totals match what staff ring up (food + $0.99 fee + 6% tax)?
+
+### Known bug to fix if the push is kept
+
+We send `schedule_type: ASAP` together with `pickup_at`. Square's
+`OrderFulfillmentPickupDetails` reference states that for ASAP fulfillments
+`pickup_at` is set automatically, so our value is ignored. Send
+`prep_time_duration` (e.g. `PT30M`) instead, or switch to `SCHEDULED` where
+`pickup_at` is honored.
 
 ### Related known gap
 
