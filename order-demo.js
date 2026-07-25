@@ -520,6 +520,16 @@
 
   document.getElementById("checkoutForm").addEventListener("submit", async function (event) {
     event.preventDefault();
+    // Safari only honours a permission request during the gesture itself, which
+    // is spent at the first await below, so ask before any of them.
+    if ("Notification" in window && Notification.permission === "default") {
+      try {
+        var permissionRequest = Notification.requestPermission();
+        if (permissionRequest && permissionRequest.catch) permissionRequest.catch(function () {});
+      } catch {
+        // Older Safari uses the callback form; the status card still updates.
+      }
+    }
     // Prime the chime while the submit gesture is still live, so the accepted
     // alert can play later without one. Browsers spend the gesture on first await.
     try {
@@ -615,9 +625,6 @@
     cart = [];
     // Baseline the new order so acceptance registers as a change worth announcing.
     lastKnownStatus = order.status;
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().catch(function () {});
-    }
     renderCart();
     renderOrderStatus();
     closeDialog(checkoutDialog);

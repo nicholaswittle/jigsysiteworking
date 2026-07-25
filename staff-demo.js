@@ -896,6 +896,16 @@
     // must happen before any `await`, which would spend the gesture.
     var unlocking = unlockAudio();
     requestWakeLock();
+    // Safari only honours a permission request during the gesture itself, so
+    // start it before the awaits below spend it.
+    var permissionRequest = null;
+    if ("Notification" in window) {
+      try {
+        permissionRequest = Notification.requestPermission();
+      } catch {
+        permissionRequest = null;
+      }
+    }
     await unlocking;
     var element = alertTrack(false);
     var audible = true;
@@ -912,13 +922,13 @@
       showToast("Sound is blocked by this browser. Allow audio for this site, then tap again.");
       return;
     }
-    if (!("Notification" in window)) {
+    if (!permissionRequest) {
       alertButton.dataset.alerts = "on";
       alertButton.textContent = "Alerts on";
       showToast("Sound alerts are on. This browser does not support system notifications.");
       return;
     }
-    var permission = await Notification.requestPermission();
+    var permission = await permissionRequest;
     var granted = permission === "granted";
     alertButton.dataset.alerts = granted ? "on" : "blocked";
     alertButton.textContent = granted ? "Alerts on" : "Alerts blocked";
