@@ -13,7 +13,13 @@
   var ordersCache = [];
   var authenticated = false;
   var refreshBusy = false;
-  var knownWaitingIds = new Set();
+  // A waiting order keeps re-alerting until staff accept or reject it.
+  var ALERT_REPEAT_MS = 30000;
+  var ALERT_ESCALATE_MS = 120000;
+  var alertedAt = new Map();
+  var waitingSince = new Map();
+  var audioContext = null;
+  var wakeLock = null;
 
   function showToast(message) {
     toast.textContent = message;
@@ -487,32 +493,108 @@
     showToast(error && error.message ? error.message : "The ordering service could not be reached.");
   }
 
-  function playOrderAlert(order) {
+  // iOS only starts audio inside a user gesture, so the context is created and
+  // resumed on the first staff tap and reused for every later alert.
+  function ensureAudioContext() {
     try {
-      var AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) {
-        var context = new AudioContext();
+      var Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return null;
+      if (!audioContext) audioContext = new Ctor();
+      if (audioContext.state === "suspended") audioContext.resume();
+      return audioContext;
+    } catch {
+      return null;
+    }
+  }
+
+  function playBeeps(count) {
+    var context = ensureAudioContext();
+    if (!context) return;
+    try {
+      for (var index = 0; index < count; index += 1) {
+        var start = context.currentTime + index * 0.28;
         var oscillator = context.createOscillator();
         var gain = context.createGain();
-        oscillator.frequency.value = 880;
-        gain.gain.setValueAtTime(0.16, context.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.7);
+        oscillator.frequency.value = count > 1 ? 988 : 880;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.2, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
         oscillator.connect(gain);
         gain.connect(context.destination);
-        oscillator.start();
-        oscillator.stop(context.currentTime + 0.7);
+        oscillator.start(start);
+        oscillator.stop(start + 0.24);
       }
     } catch {
       // Browser sound support varies; the visible queue remains authoritative.
     }
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("New Jigsy's order " + order.id, {
-        body: order.customer.name + " · " + demo.money(order.totals.total) +
-          (order.paymentMode === "square" ? " Sandbox authorized" : " due at pickup"),
-        tag: order.id
-      });
+  }
+
+  function playOrderAlert(order, options) {
+    var repeat = Boolean(options && options.repeat);
+    var urgent = Boolean(options && options.urgent);
+    playBeeps(urgent ? 3 : 1);
+    if (navigator.vibrate) {
+      try {
+        navigator.vibrate(urgent ? [200, 100, 200, 100, 200] : 200);
+      } catch {
+        // Vibration is a nicety; ignore unsupported devices.
+      }
     }
-    showToast("New order " + order.id + " received.");
+    if ("Notification" in window && Notification.permission === "granted") {
+      var waitingMinutes = Math.round((Date.now() - (waitingSince.get(order.id) || Date.now())) / 60000);
+      new Notification(
+        (urgent ? "Still waiting · " : repeat ? "Waiting · " : "New Jigsy's order ") + order.id,
+        {
+          body: order.customer.name + " · " + demo.money(order.totals.total) +
+            (repeat && waitingMinutes >= 1 ? " · waiting " + waitingMinutes + " min" : ""),
+          tag: order.id,
+          renotify: true,
+          requireInteraction: urgent
+        },
+      );
+    }
+    showToast(
+      repeat
+        ? order.id + " still needs a response."
+        : "New order " + order.id + " received.",
+    );
+  }
+
+  // Alerts every waiting order on arrival, then repeats until it is accepted or
+  // rejected. Escalates to a louder pattern once an order has waited too long.
+  function reviewWaitingAlerts(orders) {
+    var now = Date.now();
+    var waitingIds = new Set();
+    orders.forEach(function (order) {
+      if (order.status !== "New") return;
+      waitingIds.add(order.id);
+      if (!waitingSince.has(order.id)) waitingSince.set(order.id, now);
+      var last = alertedAt.get(order.id);
+      if (last && now - last < ALERT_REPEAT_MS) return;
+      playOrderAlert(order, {
+        repeat: Boolean(last),
+        urgent: now - waitingSince.get(order.id) >= ALERT_ESCALATE_MS,
+      });
+      alertedAt.set(order.id, now);
+    });
+    // Accepting or rejecting an order is the acknowledgement: stop tracking it.
+    alertedAt.forEach(function (_value, id) {
+      if (!waitingIds.has(id)) alertedAt.delete(id);
+    });
+    waitingSince.forEach(function (_value, id) {
+      if (!waitingIds.has(id)) waitingSince.delete(id);
+    });
+  }
+
+  // Keeps the kitchen tablet awake so the queue and its alarms stay live.
+  async function requestWakeLock() {
+    if (!("wakeLock" in navigator) || wakeLock) return;
+    try {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", function () { wakeLock = null; });
+    } catch {
+      // Wake lock is unavailable on some browsers; ignore.
+    }
   }
 
   async function refreshStaffData(silent) {
@@ -521,15 +603,18 @@
     try {
       var result = await Promise.all([api.loadStaffSettings(), api.loadStaffOrders()]);
       var nextOrders = result[1];
-      if (!silent) {
-        nextOrders.filter(function (order) {
-          return order.status === "New" && !knownWaitingIds.has(order.id);
-        }).forEach(playOrderAlert);
+      if (silent) {
+        // First load after sign-in: adopt the existing queue without alarming.
+        var startedAt = Date.now();
+        nextOrders.forEach(function (order) {
+          if (order.status !== "New") return;
+          waitingSince.set(order.id, startedAt);
+          alertedAt.set(order.id, startedAt);
+        });
+      } else {
+        reviewWaitingAlerts(nextOrders);
       }
       ordersCache = nextOrders;
-      knownWaitingIds = new Set(nextOrders.filter(function (order) {
-        return order.status === "New";
-      }).map(function (order) { return order.id; }));
       renderControls();
       renderOrders();
       setConnection(true);
@@ -664,6 +749,9 @@
     try {
       await api.staffLogin(pin);
       authenticated = true;
+      // Signing in is a user gesture, so audio and the wake lock unlock here.
+      ensureAudioContext();
+      requestWakeLock();
       document.getElementById("staffAuth").hidden = true;
       document.getElementById("staffPin").value = "";
       await refreshStaffData(true);
@@ -677,21 +765,34 @@
   document.getElementById("staffLogout").addEventListener("click", async function () {
     await api.staffLogout().catch(function () {});
     ordersCache = [];
-    knownWaitingIds = new Set();
+    alertedAt.clear();
+    waitingSince.clear();
+    if (wakeLock) {
+      wakeLock.release().catch(function () {});
+      wakeLock = null;
+    }
     renderOrders();
     showAuth("");
   });
   document.getElementById("enableAlerts").addEventListener("click", async function (event) {
     var alertButton = event.currentTarget;
+    // This tap is the gesture that unlocks audio and the screen wake lock.
+    ensureAudioContext();
+    playBeeps(1);
+    requestWakeLock();
     if (!("Notification" in window)) {
-      showToast("This browser does not support system notifications.");
+      showToast("Sound alerts are on. This browser does not support system notifications.");
       return;
     }
     var permission = await Notification.requestPermission();
     alertButton.textContent = permission === "granted" ? "Alerts enabled" : "Alerts blocked";
     showToast(permission === "granted"
-      ? "New-order browser alerts are enabled."
-      : "Allow notifications in the browser settings to receive alerts.");
+      ? "Alerts on. Waiting orders repeat every 30 seconds until answered."
+      : "Sound alerts are on. Allow notifications in browser settings for banners.");
+  });
+  // Screen wake locks drop whenever the tab is hidden; take it back on return.
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && authenticated) requestWakeLock();
   });
   window.addEventListener("storage", function () { renderControls(); });
   async function bootStaffConsole() {
