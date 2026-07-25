@@ -4,5 +4,12 @@
   "outputDirectory": "public",
   "framework": null,
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "destination": "https://jigsys-ordering-demo.nicholaswittle.chatgpt.site/:path*",
+      "permanent": false
+    }
+  ]
 }
