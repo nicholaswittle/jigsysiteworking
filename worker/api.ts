@@ -78,6 +78,7 @@ type StoredOrderRow = {
   payment_status: string;
   square_payment_id: string | null;
   square_refund_id: string | null;
+  square_order_id: string | null;
 };
 
 type SquareConnectionRow = {
@@ -315,7 +316,8 @@ async function ensureSchema(env: OrderingEnv) {
         payment_mode TEXT NOT NULL,
         payment_status TEXT NOT NULL,
         square_payment_id TEXT,
-        square_refund_id TEXT
+        square_refund_id TEXT,
+        square_order_id TEXT
       )
     `),
     env.DB.prepare(`
@@ -342,7 +344,7 @@ async function ensureSchema(env: OrderingEnv) {
   ]);
   const orderColumns = await env.DB.prepare("PRAGMA table_info(orders)").all<{ name: string }>();
   const columnNames = new Set((orderColumns.results ?? []).map((column) => column.name));
-  for (const column of ["square_payment_id", "square_refund_id"]) {
+  for (const column of ["square_payment_id", "square_refund_id", "square_order_id"]) {
     if (columnNames.has(column)) continue;
     try {
       await env.DB.prepare(`ALTER TABLE orders ADD COLUMN ${column} TEXT`).run();
@@ -414,6 +416,7 @@ function rowToOrder(row: StoredOrderRow, includePrivate = true) {
     paymentStatus: row.payment_status,
     squarePaymentId: includePrivate ? row.square_payment_id : undefined,
     squareRefundId: includePrivate ? row.square_refund_id : undefined,
+    squareOrderId: includePrivate ? row.square_order_id : undefined,
     totals: {
       subtotal: row.subtotal_cents / 100,
       fee: row.fee_cents / 100,
@@ -635,6 +638,7 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
   const body = await request.json().catch(() => ({})) as { action?: unknown };
   const action = cleanText(body.action, 30);
   const now = new Date().toISOString();
+  let squareOrderError: string | undefined;
   const existing = await env.DB.prepare(
     "SELECT * FROM orders WHERE restaurant_id = ? AND id = ?",
   ).bind(RESTAURANT_ID, id).first<StoredOrderRow>();
@@ -728,12 +732,31 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
     if (!result.meta.changes) {
       return json({ error: "The order changed before this action was applied. Refresh and try again." }, 409);
     }
+    // On acceptance, push the order into the connected Square account so it prints
+    // on the restaurant's Square system and staff take payment there. Non-fatal:
+    // the order is still accepted (and the app ticket still prints) if Square fails.
+    if (action === "accept" && !existing.square_order_id) {
+      const connection = await getSquareConnection(env);
+      if (connection) {
+        try {
+          const squareOrderId = await createSquareOrder(env, existing, connection);
+          await env.DB.prepare(
+            "UPDATE orders SET square_order_id = ? WHERE restaurant_id = ? AND id = ?",
+          ).bind(squareOrderId, RESTAURANT_ID, id).run();
+        } catch (error) {
+          console.error("Square order creation failed", error);
+          squareOrderError = error instanceof SquarePaymentError
+            ? error.message
+            : "The order was accepted but could not be sent to Square.";
+        }
+      }
+    }
   }
 
   const row = await env.DB.prepare(
     "SELECT * FROM orders WHERE restaurant_id = ? AND id = ?",
   ).bind(RESTAURANT_ID, id).first<StoredOrderRow>();
-  return json({ order: row ? rowToOrder(row, true) : null });
+  return json({ order: row ? rowToOrder(row, true) : null, squareOrderError });
 }
 
 async function updateSettings(request: Request, env: OrderingEnv) {
@@ -950,6 +973,55 @@ async function refundSquarePayment(
     );
   }
   return result.data.refund.id;
+}
+
+async function createSquareOrder(env: OrderingEnv, order: StoredOrderRow, connection: SquareConnectionRow) {
+  const items = JSON.parse(order.items_json) as Array<{ name?: string; detail?: string; price?: number }>;
+  const lineItems: Array<Record<string, unknown>> = items.map((item) => ({
+    name: String(item.name ?? "Item").slice(0, 512),
+    quantity: "1",
+    base_price_money: { amount: Math.round(Number(item.price ?? 0) * 100), currency: "USD" },
+    note: item.detail ? String(item.detail).slice(0, 500) : undefined,
+  }));
+  if (order.fee_cents > 0) {
+    lineItems.push({
+      name: "Online ordering fee",
+      quantity: "1",
+      base_price_money: { amount: order.fee_cents, currency: "USD" },
+    });
+  }
+  const customer = JSON.parse(order.customer_json) as { name?: string; phone?: string };
+  const pickupAt = new Date(Date.now() + order.pickup_minutes * 60_000).toISOString();
+  const result = await squareApiRequest<{ order?: { id?: string } }>(env, "/v2/orders", {
+    method: "POST",
+    body: JSON.stringify({
+      idempotency_key: `wisense-order-${order.id}-${randomToken().slice(0, 12)}`,
+      order: {
+        location_id: connection.location_id,
+        reference_id: order.id,
+        line_items: lineItems,
+        fulfillments: [
+          {
+            type: "PICKUP",
+            state: "PROPOSED",
+            pickup_details: {
+              recipient: {
+                display_name: customer.name || "Online order",
+                phone_number: customer.phone || undefined,
+              },
+              schedule_type: "ASAP",
+              pickup_at: pickupAt,
+              note: order.notes ? order.notes.slice(0, 500) : undefined,
+            },
+          },
+        ],
+      },
+    }),
+  });
+  if (!result.response.ok || !result.data.order?.id) {
+    throw new SquarePaymentError(squarePaymentMessage(result.data, "Square could not record the order."));
+  }
+  return result.data.order.id;
 }
 
 async function publicSquareConfig(env: OrderingEnv) {

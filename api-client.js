@@ -75,10 +75,10 @@
       return updateLocalSettings(data.settings);
     },
     async updateOrder(id, action) {
-      return (await request("/api/staff/orders/" + encodeURIComponent(id), {
+      return await request("/api/staff/orders/" + encodeURIComponent(id), {
         method: "PATCH",
         body: JSON.stringify({ action: action })
-      })).order;
+      });
     },
     async loadSquareStatus() {
       return (await request("/api/staff/square/status")).status;

@@ -45,6 +45,7 @@ export const orders = sqliteTable(
     paymentStatus: text("payment_status").notNull(),
     squarePaymentId: text("square_payment_id"),
     squareRefundId: text("square_refund_id"),
+    squareOrderId: text("square_order_id"),
   },
   (table) => [
     index("orders_restaurant_submitted_idx").on(table.restaurantId, table.submittedAt),

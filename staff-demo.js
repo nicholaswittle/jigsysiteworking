@@ -385,7 +385,11 @@
     if (!order) return;
     try {
       if (acceptFirst) {
-        order = await api.updateOrder(id, "accept");
+        var acceptResult = await api.updateOrder(id, "accept");
+        order = acceptResult.order;
+        if (acceptResult.squareOrderError) {
+          showToast(acceptResult.squareOrderError);
+        }
       }
       await api.updateOrder(id, "print");
     } catch (error) {
