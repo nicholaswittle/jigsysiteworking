@@ -8,12 +8,12 @@
   "redirects": [
     {
       "source": "/",
-      "destination": "https://jigsys-ordering-demo.nicholaswittle.chatgpt.site",
+      "destination": "https://jigsys-ordering-demo.wisense.workers.dev",
       "permanent": false
     },
     {
       "source": "/:path*",
-      "destination": "https://jigsys-ordering-demo.nicholaswittle.chatgpt.site/:path*",
+      "destination": "https://jigsys-ordering-demo.wisense.workers.dev/:path*",
       "permanent": false
     }
   ]
