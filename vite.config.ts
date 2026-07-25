@@ -18,8 +18,10 @@ const localBindingConfig = {
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          // For a standalone Cloudflare deploy set CF_D1_DATABASE_ID / _NAME at
+          // build time (see docs/CLOUDFLARE-DEPLOY.md). Unset = Sites placeholder.
+          database_name: process.env.CF_D1_DATABASE_NAME || "site-creator-d1",
+          database_id: process.env.CF_D1_DATABASE_ID || SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
         },
       ]
     : [],
