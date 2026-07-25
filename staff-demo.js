@@ -191,12 +191,12 @@
           : "";
         var action;
         if (order.status === "New") {
-          action = '<button type="button" data-accept="' + order.id + '" class="primary">Accept &amp; print ticket</button>' +
+          action = '<button type="button" data-accept="' + order.id + '" class="primary">Accept order</button>' +
             '<button type="button" data-reject="' + order.id + '" class="reject">Reject order</button>';
         } else if (order.status === "Accepted") {
-          action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' + refundButton;
+          action = '<button type="button" data-print="' + order.id + '">Print ticket</button>' + refundButton;
         } else if (order.status === "Completed") {
-          action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' + refundButton +
+          action = '<button type="button" data-print="' + order.id + '">Print ticket</button>' + refundButton +
             '<button type="button" data-unpaid="' + order.id + '" class="reject">Didn’t pay</button>' +
             '<span class="fine-print">Counts toward the WiSense fee report. Mark “Didn’t pay” for a no-show to remove the $0.99.</span>';
         } else if (order.status === "Unpaid") {
@@ -383,17 +383,24 @@
         "</div>";
   }
 
-  async function printOrder(id, acceptFirst) {
+  async function acceptOrder(id) {
+    try {
+      var result = await api.updateOrder(id, "accept");
+      await refreshStaffData();
+      if (result.squareOrderError) {
+        showToast(result.squareOrderError);
+      } else {
+        showToast(id + " accepted &amp; sent to Square.");
+      }
+    } catch (error) {
+      handleStaffError(error);
+    }
+  }
+
+  async function printOrder(id) {
     var order = ordersCache.find(function (item) { return item.id === id; });
     if (!order) return;
     try {
-      if (acceptFirst) {
-        var acceptResult = await api.updateOrder(id, "accept");
-        order = acceptResult.order;
-        if (acceptResult.squareOrderError) {
-          showToast(acceptResult.squareOrderError);
-        }
-      }
       await api.updateOrder(id, "print");
     } catch (error) {
       handleStaffError(error);
@@ -402,7 +409,7 @@
     ticket.innerHTML = ticketMarkup(order);
     ticket.setAttribute("aria-hidden", "false");
     await refreshStaffData();
-    showToast(order.id + (acceptFirst ? " accepted &amp; sent to Square. Opening ticket…" : " ticket ready."));
+    showToast(order.id + " ticket ready.");
     window.setTimeout(function () { window.print(); }, 80);
   }
 
@@ -567,9 +574,9 @@
     var refund = event.target.closest("[data-refund]");
     var unpaid = event.target.closest("[data-unpaid]");
     var markpaid = event.target.closest("[data-markpaid]");
-    if (accept) printOrder(accept.getAttribute("data-accept"), true);
+    if (accept) acceptOrder(accept.getAttribute("data-accept"));
     if (reject) rejectOrder(reject.getAttribute("data-reject"));
-    if (reprint) printOrder(reprint.getAttribute("data-print"), false);
+    if (reprint) printOrder(reprint.getAttribute("data-print"));
     if (complete) completeOrder(complete.getAttribute("data-complete"));
     if (refund) refundOrder(refund.getAttribute("data-refund"));
     if (unpaid) markUnpaid(unpaid.getAttribute("data-unpaid"));
