@@ -517,7 +517,9 @@ async function createOrder(request: Request, env: OrderingEnv) {
   }
 
   const feeCents = settings.feeCents;
-  const taxCents = Math.round(subtotalCents * settings.taxRate);
+  // PA taxes service fees charged alongside a taxable food sale, so the online
+  // ordering fee is part of the taxable base.
+  const taxCents = Math.round((subtotalCents + feeCents) * settings.taxRate);
   const totalCents = subtotalCents + feeCents + taxCents;
   const now = new Date().toISOString();
   const publicToken = randomToken();
@@ -983,8 +985,8 @@ async function refundSquarePayment(
 async function createSquareOrder(env: OrderingEnv, order: StoredOrderRow, connection: SquareConnectionRow) {
   const settings = await getSettings(env);
   const items = JSON.parse(order.items_json) as Array<{ name?: string; detail?: string; price?: number }>;
-  // Sales tax applies to the food only, matching how the customer total is
-  // calculated, so the Square ticket rings up the same amount the customer saw.
+  // Sales tax covers the food and the ordering fee, matching how the customer
+  // total is calculated, so the Square ticket rings up the amount they saw.
   const taxable = order.tax_cents > 0 && settings.taxRate > 0;
   const appliedTaxes = taxable ? [{ tax_uid: SQUARE_TAX_UID }] : undefined;
   const lineItems: Array<Record<string, unknown>> = items.map((item, index) => ({
@@ -1001,6 +1003,7 @@ async function createSquareOrder(env: OrderingEnv, order: StoredOrderRow, connec
       name: "Online ordering fee",
       quantity: "1",
       base_price_money: { amount: order.fee_cents, currency: "USD" },
+      applied_taxes: appliedTaxes,
     });
   }
   const customer = JSON.parse(order.customer_json) as { name?: string; phone?: string };

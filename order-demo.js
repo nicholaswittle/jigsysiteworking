@@ -384,7 +384,8 @@
     var subtotal = cart.reduce(function (sum, item) { return sum + item.price; }, 0);
     var settings = demo.settings();
     var fee = cart.length ? Number(settings.fee || 0.99) : 0;
-    var tax = subtotal * Number(settings.taxRate || 0.06);
+    // PA taxes the online ordering fee along with the food, so it is in the base.
+    var tax = (subtotal + fee) * Number(settings.taxRate || 0.06);
     return { subtotal: subtotal, fee: fee, tax: tax, total: subtotal + fee + tax };
   }
 
