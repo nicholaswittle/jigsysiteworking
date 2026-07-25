@@ -493,8 +493,9 @@
     showToast(error && error.message ? error.message : "The ordering service could not be reached.");
   }
 
-  // iOS only starts audio inside a user gesture, so the context is created and
-  // resumed on the first staff tap and reused for every later alert.
+  // Browsers only start audio inside a user gesture, and they consider the
+  // gesture spent after the first `await`. So the context is created and resumed
+  // synchronously on the very first interaction anywhere on the page.
   function ensureAudioContext() {
     try {
       var Ctor = window.AudioContext || window.webkitAudioContext;
@@ -507,25 +508,52 @@
     }
   }
 
-  function playBeeps(count) {
+  function unlockAudio() {
     var context = ensureAudioContext();
     if (!context) return;
     try {
+      // A silent blip completes the unlock handshake on stricter browsers.
+      var source = context.createBufferSource();
+      source.buffer = context.createBuffer(1, 1, 22050);
+      source.connect(context.destination);
+      source.start(0);
+    } catch {
+      // Unlock is best effort; alerts still show visually.
+    }
+  }
+  ["pointerdown", "keydown"].forEach(function (type) {
+    window.addEventListener(type, unlockAudio, { capture: true });
+  });
+
+  function playBeeps(count) {
+    var context = ensureAudioContext();
+    if (!context) return false;
+    try {
       for (var index = 0; index < count; index += 1) {
-        var start = context.currentTime + index * 0.28;
+        var start = context.currentTime + index * 0.34;
         var oscillator = context.createOscillator();
         var gain = context.createGain();
+        // Two stacked tones carry further across a noisy kitchen than one.
+        var harmonic = context.createOscillator();
+        oscillator.type = "square";
+        harmonic.type = "sine";
         oscillator.frequency.value = count > 1 ? 988 : 880;
+        harmonic.frequency.value = (count > 1 ? 988 : 880) * 2;
         gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.2, start + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.45, start + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
         oscillator.connect(gain);
+        harmonic.connect(gain);
         gain.connect(context.destination);
         oscillator.start(start);
-        oscillator.stop(start + 0.24);
+        harmonic.start(start);
+        oscillator.stop(start + 0.32);
+        harmonic.stop(start + 0.32);
       }
+      return context.state === "running";
     } catch {
       // Browser sound support varies; the visible queue remains authoritative.
+      return false;
     }
   }
 
@@ -749,8 +777,6 @@
     try {
       await api.staffLogin(pin);
       authenticated = true;
-      // Signing in is a user gesture, so audio and the wake lock unlock here.
-      ensureAudioContext();
       requestWakeLock();
       document.getElementById("staffAuth").hidden = true;
       document.getElementById("staffPin").value = "";
@@ -776,10 +802,15 @@
   });
   document.getElementById("enableAlerts").addEventListener("click", async function (event) {
     var alertButton = event.currentTarget;
-    // This tap is the gesture that unlocks audio and the screen wake lock.
-    ensureAudioContext();
-    playBeeps(1);
+    // This tap is the gesture that unlocks audio and the screen wake lock. Both
+    // must happen before any `await`, which would spend the gesture.
+    unlockAudio();
+    var audible = playBeeps(1);
     requestWakeLock();
+    if (!audible) {
+      showToast("Sound is blocked by this browser. Allow audio for this site, then tap again.");
+      return;
+    }
     if (!("Notification" in window)) {
       showToast("Sound alerts are on. This browser does not support system notifications.");
       return;
