@@ -338,11 +338,16 @@
 
   function pickupOptions() {
     var settings = demo.settings();
+    var select = document.getElementById("pickupTime");
+    var previous = select.value;
     var increments = [0, 15, 30, 45];
-    document.getElementById("pickupTime").innerHTML = increments.map(function (add, index) {
-      var minutes = settings.prepMinutes + add;
+    var minutesOptions = increments.map(function (add) { return settings.prepMinutes + add; });
+    select.innerHTML = minutesOptions.map(function (minutes, index) {
       return '<option value="' + minutes + '">' + (index === 0 ? "ASAP - about " : "") + minutes + " minutes</option>";
     }).join("");
+    // Staff can raise the estimate while the page is open; keep the customer's
+    // choice only when it is still at or above the new floor.
+    if (previous && minutesOptions.indexOf(Number(previous)) !== -1) select.value = previous;
   }
 
   tabs.addEventListener("click", function (event) {
@@ -575,6 +580,7 @@
     renderServiceState();
     renderProducts();
     renderCart();
+    pickupOptions();
     await refreshSquareConfig();
   }
 
