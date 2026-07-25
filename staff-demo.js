@@ -126,6 +126,7 @@
     if (order.status === "Rejected") return "Rejected";
     if (order.status === "Completed") return "Completed";
     if (order.status === "Cancelled") return "Cancelled";
+    if (order.status === "Refunded") return "Refunded";
     return "Accepted";
   }
 
@@ -171,16 +172,22 @@
         }).join("");
         var paymentLine;
         if (order.paymentMode === "square") {
-          paymentLine = order.paymentStatus === "authorized"
-            ? demo.money(order.totals.total) + " Sandbox authorized · capture on accept"
-            : order.paymentStatus === "completed"
-              ? demo.money(order.totals.total) + " Sandbox captured"
-              : demo.money(order.totals.total) + " Sandbox authorization voided";
+          paymentLine = order.paymentStatus === "refunded"
+            ? demo.money(order.totals.total) + " Sandbox refunded"
+            : order.paymentStatus === "authorized"
+              ? demo.money(order.totals.total) + " Sandbox authorized · capture on accept"
+              : order.paymentStatus === "completed"
+                ? demo.money(order.totals.total) + " Sandbox captured"
+                : demo.money(order.totals.total) + " Sandbox authorization voided";
         } else {
           paymentLine = order.status === "Completed"
             ? demo.money(order.totals.total) + " paid · completed"
             : demo.money(order.totals.total) + " due at pickup";
         }
+        var refundable = order.paymentMode === "square" && order.paymentStatus === "completed";
+        var refundButton = refundable
+          ? '<button type="button" data-refund="' + order.id + '" class="reject">Refund payment</button>'
+          : "";
         var action;
         if (order.status === "New") {
           action = '<button type="button" data-accept="' + order.id + '" class="primary">Accept &amp; print ticket</button>' +
@@ -188,10 +195,12 @@
         } else if (order.status === "Accepted") {
           action = '<button type="button" data-complete="' + order.id + '" class="primary">' +
             (order.paymentMode === "square" ? "Mark order completed" : "Mark paid &amp; completed") + "</button>" +
-            '<button type="button" data-print="' + order.id + '">Reprint ticket</button>';
+            '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' + refundButton;
         } else if (order.status === "Completed") {
-          action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' +
+          action = '<button type="button" data-print="' + order.id + '">Reprint ticket</button>' + refundButton +
             '<span class="fine-print">Completed orders count toward the WiSense fee report.</span>';
+        } else if (order.status === "Refunded") {
+          action = '<span class="fine-print">Refunded orders remain in the daily report and do not earn a fee.</span>';
         } else {
           action = '<span class="fine-print">Rejected and cancelled orders remain in the daily report and do not earn a fee.</span>';
         }
@@ -405,6 +414,22 @@
     }
   }
 
+  async function refundOrder(id) {
+    var order = ordersCache.find(function (item) { return item.id === id; });
+    if (!order || order.paymentMode !== "square" || order.paymentStatus !== "completed") return;
+    if (!window.confirm(
+      "Refund " + id + "? This returns the full " + demo.money(order.totals.total) +
+      " Square Sandbox payment. The order drops out of the WiSense fee report."
+    )) return;
+    try {
+      await api.updateOrder(id, "refund");
+      await refreshStaffData();
+      showToast(id + " refunded. No fee counted.");
+    } catch (error) {
+      handleStaffError(error);
+    }
+  }
+
   function setConnection(connected) {
     var status = document.getElementById("connectionStatus");
     status.textContent = connected ? "Live · checking for orders" : "Connection interrupted";
@@ -511,10 +536,12 @@
     var reject = event.target.closest("[data-reject]");
     var reprint = event.target.closest("[data-print]");
     var complete = event.target.closest("[data-complete]");
+    var refund = event.target.closest("[data-refund]");
     if (accept) printOrder(accept.getAttribute("data-accept"), true);
     if (reject) rejectOrder(reject.getAttribute("data-reject"));
     if (reprint) printOrder(reprint.getAttribute("data-print"), false);
     if (complete) completeOrder(complete.getAttribute("data-complete"));
+    if (refund) refundOrder(refund.getAttribute("data-refund"));
   });
   document.querySelector(".order-filters").addEventListener("click", function (event) {
     var button = event.target.closest("[data-filter]");
@@ -648,6 +675,14 @@
     } catch {
       showAuth("");
     }
+  }
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {
+        /* The offline shell is a progressive enhancement; ignore registration failures. */
+      });
+    });
   }
 
   bootStaffConsole();

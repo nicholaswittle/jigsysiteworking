@@ -77,6 +77,7 @@ type StoredOrderRow = {
   payment_mode: string;
   payment_status: string;
   square_payment_id: string | null;
+  square_refund_id: string | null;
 };
 
 type SquareConnectionRow = {
@@ -313,7 +314,8 @@ async function ensureSchema(env: OrderingEnv) {
         total_cents INTEGER NOT NULL,
         payment_mode TEXT NOT NULL,
         payment_status TEXT NOT NULL,
-        square_payment_id TEXT
+        square_payment_id TEXT,
+        square_refund_id TEXT
       )
     `),
     env.DB.prepare(`
@@ -339,9 +341,11 @@ async function ensureSchema(env: OrderingEnv) {
     ),
   ]);
   const orderColumns = await env.DB.prepare("PRAGMA table_info(orders)").all<{ name: string }>();
-  if (!(orderColumns.results ?? []).some((column) => column.name === "square_payment_id")) {
+  const columnNames = new Set((orderColumns.results ?? []).map((column) => column.name));
+  for (const column of ["square_payment_id", "square_refund_id"]) {
+    if (columnNames.has(column)) continue;
     try {
-      await env.DB.prepare("ALTER TABLE orders ADD COLUMN square_payment_id TEXT").run();
+      await env.DB.prepare(`ALTER TABLE orders ADD COLUMN ${column} TEXT`).run();
     } catch (error) {
       if (!String(error).toLowerCase().includes("duplicate column")) throw error;
     }
@@ -409,6 +413,7 @@ function rowToOrder(row: StoredOrderRow, includePrivate = true) {
     paymentMode: row.payment_mode,
     paymentStatus: row.payment_status,
     squarePaymentId: includePrivate ? row.square_payment_id : undefined,
+    squareRefundId: includePrivate ? row.square_refund_id : undefined,
     totals: {
       subtotal: row.subtotal_cents / 100,
       fee: row.fee_cents / 100,
@@ -652,6 +657,38 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
       "UPDATE orders SET printed_at = ?, updated_at = ? WHERE restaurant_id = ? AND id = ?",
     ).bind(now, now, RESTAURANT_ID, id).run();
     if (!result.meta.changes) return json({ error: "Order not found." }, 404);
+  } else if (action === "refund") {
+    if (existing.payment_mode !== "square") {
+      return json({ error: "Only Square Sandbox payments can be refunded." }, 409);
+    }
+    if (!existing.square_payment_id || existing.payment_status !== "completed") {
+      return json({ error: "This order has no captured Square payment to refund." }, 409);
+    }
+    if (existing.square_refund_id || existing.status === "Refunded") {
+      return json({ error: "This order was already refunded." }, 409);
+    }
+    if (existing.status !== "Accepted" && existing.status !== "Completed") {
+      return json({ error: "Only accepted or completed orders can be refunded." }, 409);
+    }
+    let refundId: string;
+    try {
+      refundId = await refundSquarePayment(env, {
+        id: existing.id,
+        paymentId: existing.square_payment_id,
+        totalCents: existing.total_cents,
+      });
+    } catch (error) {
+      if (error instanceof SquarePaymentError) return json({ error: error.message }, error.status);
+      throw error;
+    }
+    const result = await env.DB.prepare(`
+      UPDATE orders
+      SET status = 'Refunded', payment_status = 'refunded', square_refund_id = ?, updated_at = ?
+      WHERE restaurant_id = ? AND id = ? AND status IN ('Accepted', 'Completed')
+    `).bind(refundId, now, RESTAURANT_ID, id).run();
+    if (!result.meta.changes) {
+      return json({ error: "The order changed before this action was applied. Refresh and try again." }, 409);
+    }
   } else {
     const transition = transitions[action];
     if (!transition) return json({ error: "Unknown order action." }, 400);
@@ -659,7 +696,7 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
       return json({ error: "The order changed before this action was applied. Refresh and try again." }, 409);
     }
     if (existing.payment_mode === "square" && action === "cancel") {
-      return json({ error: "A captured Square payment requires a separate refund. Cancellation is not enabled yet." }, 409);
+      return json({ error: "A captured Square payment cannot be cancelled. Use Refund to return the Sandbox payment." }, 409);
     }
     if (existing.payment_mode === "square" && (action === "accept" || action === "reject")) {
       if (!existing.square_payment_id || existing.payment_status !== "authorized") {
@@ -888,6 +925,31 @@ async function settleSquarePayment(env: OrderingEnv, paymentId: string, action: 
         : "Square could not cancel the Sandbox authorization. The order was not rejected.",
     ),
   );
+}
+
+async function refundSquarePayment(
+  env: OrderingEnv,
+  payment: { id: string; paymentId: string; totalCents: number },
+) {
+  const result = await squareApiRequest<{
+    refund?: { id?: string; status?: string };
+  }>(env, "/v2/refunds", {
+    method: "POST",
+    body: JSON.stringify({
+      idempotency_key: `wisense-refund-${payment.id}-${randomToken().slice(0, 16)}`,
+      payment_id: payment.paymentId,
+      amount_money: { amount: payment.totalCents, currency: "USD" },
+      reason: `Jigsy's Sandbox refund ${payment.id}`,
+    }),
+  });
+  const status = result.data.refund?.status;
+  // Square returns PENDING (settles asynchronously) or COMPLETED for a successful refund.
+  if (!result.response.ok || !result.data.refund?.id || (status !== "PENDING" && status !== "COMPLETED")) {
+    throw new SquarePaymentError(
+      squarePaymentMessage(result.data, "Square could not refund the Sandbox payment. The order was not refunded."),
+    );
+  }
+  return result.data.refund.id;
 }
 
 async function publicSquareConfig(env: OrderingEnv) {

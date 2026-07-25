@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `square_refund_id` text;

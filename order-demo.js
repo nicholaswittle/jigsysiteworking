@@ -219,6 +219,12 @@
           order.pickupMinutes + " minutes."
         : "Jigsy’s accepted your order. Plan for pickup in about " +
           order.pickupMinutes + " minutes and pay " + demo.money(order.totals.total) + " at the counter.";
+    } else if (order.status === "Refunded") {
+      badge.textContent = "Refunded";
+      title.textContent = order.id + " was refunded";
+      copy.textContent = order.paymentMode === "square"
+        ? "Jigsy’s refunded this order in full. The Square Sandbox test payment was returned and no fee applies."
+        : "Jigsy’s refunded this order in full. No online ordering fee applies.";
     } else if (order.status === "Rejected" || order.status === "Cancelled") {
       badge.textContent = "Not accepted";
       title.textContent = order.id + " could not be accepted";

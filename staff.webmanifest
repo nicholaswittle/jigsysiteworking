@@ -1,0 +1,16 @@
+{
+  "name": "Jigsy's Staff Order Console",
+  "short_name": "Jigsy's Staff",
+  "description": "Secure staff console for managing Jigsy's direct pickup orders.",
+  "start_url": "staff-demo.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#17110D",
+  "theme_color": "#17110D",
+  "icons": [
+    { "src": "images/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "images/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "images/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

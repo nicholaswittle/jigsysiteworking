@@ -12,6 +12,8 @@ const files = [
   "api-client.js",
   "order-demo.js",
   "staff-demo.js",
+  "sw.js",
+  "staff.webmanifest",
 ];
 
 await rm(output, { recursive: true, force: true });
