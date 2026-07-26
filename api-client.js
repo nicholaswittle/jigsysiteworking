@@ -80,6 +80,9 @@
         body: JSON.stringify({ action: action })
       });
     },
+    async loadMonthTotals(month) {
+      return (await request("/api/staff/totals?month=" + encodeURIComponent(month))).totals;
+    },
     async loadSquareStatus() {
       return (await request("/api/staff/square/status")).status;
     },

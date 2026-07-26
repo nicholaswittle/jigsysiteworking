@@ -3,6 +3,9 @@ import menuCatalog from "../config/menu-catalog.json";
 const RESTAURANT_ID = "jigsys";
 const SESSION_COOKIE = "wisense_staff_session";
 const SQUARE_STATE_COOKIE = "wisense_square_oauth";
+// Orders are timestamped in UTC, but staff think in local days: an 8pm order is
+// already "tomorrow" in UTC. Totals are rolled up by the restaurant's own day.
+const RESTAURANT_TIME_ZONE = "America/New_York";
 const SESSION_SECONDS = 12 * 60 * 60;
 const SQUARE_API_VERSION = "2026-07-15";
 const SQUARE_SCOPES = [
@@ -79,6 +82,7 @@ type StoredOrderRow = {
   square_payment_id: string | null;
   square_refund_id: string | null;
   square_order_id: string | null;
+  business_day: string | null;
 };
 
 type SquareConnectionRow = {
@@ -166,6 +170,16 @@ function expectedItemCents(item: SubmittedItem) {
 
 function randomToken() {
   return crypto.randomUUID().replaceAll("-", "");
+}
+
+// en-CA formats as YYYY-MM-DD, which sorts and slices cleanly.
+function businessDay(iso: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: RESTAURANT_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
 }
 
 function newOrderId() {
@@ -319,7 +333,8 @@ async function ensureSchema(env: OrderingEnv) {
         payment_status TEXT NOT NULL,
         square_payment_id TEXT,
         square_refund_id TEXT,
-        square_order_id TEXT
+        square_order_id TEXT,
+        business_day TEXT
       )
     `),
     env.DB.prepare(`
@@ -337,6 +352,21 @@ async function ensureSchema(env: OrderingEnv) {
         updated_at TEXT NOT NULL
       )
     `),
+    // Per-day rollup so month and year totals survive without keeping every
+    // order row (those hold customer names and phone numbers).
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS daily_totals (
+        restaurant_id TEXT NOT NULL,
+        day TEXT NOT NULL,
+        requests INTEGER NOT NULL,
+        completed INTEGER NOT NULL,
+        unpaid INTEGER NOT NULL,
+        rejected INTEGER NOT NULL,
+        sales_cents INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (restaurant_id, day)
+      )
+    `),
     env.DB.prepare(
       "CREATE INDEX IF NOT EXISTS orders_restaurant_submitted_idx ON orders (restaurant_id, submitted_at DESC)",
     ),
@@ -346,7 +376,7 @@ async function ensureSchema(env: OrderingEnv) {
   ]);
   const orderColumns = await env.DB.prepare("PRAGMA table_info(orders)").all<{ name: string }>();
   const columnNames = new Set((orderColumns.results ?? []).map((column) => column.name));
-  for (const column of ["square_payment_id", "square_refund_id", "square_order_id"]) {
+  for (const column of ["square_payment_id", "square_refund_id", "square_order_id", "business_day"]) {
     if (columnNames.has(column)) continue;
     try {
       await env.DB.prepare(`ALTER TABLE orders ADD COLUMN ${column} TEXT`).run();
@@ -354,6 +384,44 @@ async function ensureSchema(env: OrderingEnv) {
       if (!String(error).toLowerCase().includes("duplicate column")) throw error;
     }
   }
+}
+
+// Recomputed from the orders themselves rather than incremented, so a status
+// flipping back and forth (paid -> not paid -> paid) can never drift the totals.
+async function recomputeDailyTotals(env: OrderingEnv, day: string) {
+  if (!day) return;
+  const totals = await env.DB.prepare(`
+    SELECT
+      COUNT(*) AS requests,
+      SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed,
+      SUM(CASE WHEN status = 'Unpaid' THEN 1 ELSE 0 END) AS unpaid,
+      SUM(CASE WHEN status = 'Rejected' THEN 1 ELSE 0 END) AS rejected,
+      SUM(CASE WHEN status = 'Completed' THEN total_cents ELSE 0 END) AS sales_cents
+    FROM orders
+    WHERE restaurant_id = ? AND business_day = ? AND status != 'PaymentPending'
+  `).bind(RESTAURANT_ID, day).first<{
+    requests: number; completed: number; unpaid: number; rejected: number; sales_cents: number;
+  }>();
+  await env.DB.prepare(`
+    INSERT INTO daily_totals (restaurant_id, day, requests, completed, unpaid, rejected, sales_cents, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(restaurant_id, day) DO UPDATE SET
+      requests = excluded.requests,
+      completed = excluded.completed,
+      unpaid = excluded.unpaid,
+      rejected = excluded.rejected,
+      sales_cents = excluded.sales_cents,
+      updated_at = excluded.updated_at
+  `).bind(
+    RESTAURANT_ID,
+    day,
+    totals?.requests ?? 0,
+    totals?.completed ?? 0,
+    totals?.unpaid ?? 0,
+    totals?.rejected ?? 0,
+    totals?.sales_cents ?? 0,
+    new Date().toISOString(),
+  ).run();
 }
 
 async function getSettings(env: OrderingEnv) {
@@ -546,8 +614,8 @@ async function createOrder(request: Request, env: OrderingEnv) {
           id, restaurant_id, public_token, status, submitted_at, updated_at,
           pickup_minutes, customer_json, notes, items_json, subtotal_cents,
           fee_cents, tax_cents, total_cents, payment_mode, payment_status,
-          square_payment_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          square_payment_id, business_day
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         id,
         RESTAURANT_ID,
@@ -566,6 +634,7 @@ async function createOrder(request: Request, env: OrderingEnv) {
         settings.paymentMode,
         squareMode ? "authorizing" : "due_at_pickup",
         null,
+        businessDay(now),
       ).run();
 
       let squarePaymentId: string | null = null;
@@ -592,6 +661,8 @@ async function createOrder(request: Request, env: OrderingEnv) {
           throw error;
         }
       }
+
+      await recomputeDailyTotals(env, businessDay(now));
 
       return json({
         order: {
@@ -636,6 +707,38 @@ async function staffOrders(url: URL, env: OrderingEnv) {
     "SELECT * FROM orders WHERE restaurant_id = ? AND submitted_at >= ? AND status != 'PaymentPending' ORDER BY submitted_at DESC LIMIT 1000",
   ).bind(RESTAURANT_ID, since).all<StoredOrderRow>();
   return json({ orders: (result.results ?? []).map((row) => rowToOrder(row, true)) });
+}
+
+// Month totals come from the daily rollup, so they stay correct however far back
+// they go — no need to keep the individual orders around.
+async function staffTotals(url: URL, env: OrderingEnv) {
+  await ensureSchema(env);
+  const month = cleanText(url.searchParams.get("month"), 7);
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return json({ error: "Provide a month as YYYY-MM." }, 400);
+  }
+  const summary = await env.DB.prepare(`
+    SELECT
+      COALESCE(SUM(requests), 0) AS requests,
+      COALESCE(SUM(completed), 0) AS completed,
+      COALESCE(SUM(unpaid), 0) AS unpaid,
+      COALESCE(SUM(rejected), 0) AS rejected,
+      COALESCE(SUM(sales_cents), 0) AS sales_cents
+    FROM daily_totals
+    WHERE restaurant_id = ? AND day LIKE ?
+  `).bind(RESTAURANT_ID, `${month}-%`).first<{
+    requests: number; completed: number; unpaid: number; rejected: number; sales_cents: number;
+  }>();
+  return json({
+    month,
+    totals: {
+      requests: summary?.requests ?? 0,
+      completed: summary?.completed ?? 0,
+      unpaid: summary?.unpaid ?? 0,
+      rejected: summary?.rejected ?? 0,
+      sales: (summary?.sales_cents ?? 0) / 100,
+    },
+  });
 }
 
 async function updateOrder(request: Request, env: OrderingEnv, id: string) {
@@ -744,6 +847,8 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
   const row = await env.DB.prepare(
     "SELECT * FROM orders WHERE restaurant_id = ? AND id = ?",
   ).bind(RESTAURANT_ID, id).first<StoredOrderRow>();
+  // Keep the day's rollup in step with whatever this action changed.
+  await recomputeDailyTotals(env, row?.business_day ?? businessDay(existing.submitted_at));
   return json({ order: row ? rowToOrder(row, true) : null });
 }
 
@@ -1223,6 +1328,9 @@ export async function handleOrderingApi(request: Request, env: OrderingEnv): Pro
       }
       if (url.pathname === "/api/staff/orders" && request.method === "GET") {
         return staffOrders(url, env);
+      }
+      if (url.pathname === "/api/staff/totals" && request.method === "GET") {
+        return staffTotals(url, env);
       }
       if (url.pathname === "/api/staff/settings" && request.method === "GET") {
         return json({ settings: publicSettings(await getSettings(env)) });

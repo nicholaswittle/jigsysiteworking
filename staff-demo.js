@@ -280,39 +280,37 @@
         }).join("")
       : '<tr><td colspan="4" class="report-empty">No online requests were received on this date.</td></tr>';
 
-    renderMonthTotals(orders);
+    renderMonthTotals();
   }
 
-  // Totals for the calendar month containing the selected report date.
-  function monthTotals(orders, monthKey) {
-    var inMonth = orders.filter(function (order) {
-      return dayKey(order.submittedAt).slice(0, 7) === monthKey;
-    });
-    var completed = inMonth.filter(function (order) { return order.status === "Completed"; });
-    return {
-      requests: inMonth.length,
-      completed: completed.length,
-      unpaid: inMonth.filter(function (order) { return order.status === "Unpaid"; }).length,
-      sales: completed.reduce(function (sum, order) {
-        return sum + Number(order.totals.total || 0);
-      }, 0)
-    };
-  }
+  // Month totals come from the server's daily rollup rather than the loaded
+  // orders, so they stay right for months older than the console's order window.
+  var monthTotalsCache = { month: "", totals: { requests: 0, completed: 0, unpaid: 0, sales: 0 } };
 
   function monthLabel(monthKey) {
     return new Date(monthKey + "-01T12:00:00")
       .toLocaleDateString([], { month: "long", year: "numeric" });
   }
 
-  function renderMonthTotals(orders) {
-    var monthKey = selectedReportDay.slice(0, 7);
-    var totals = monthTotals(orders, monthKey);
+  function paintMonthTotals(monthKey, totals) {
     document.getElementById("reportMonthHeading").textContent = monthLabel(monthKey);
     document.getElementById("reportMonthSales").textContent = demo.money(totals.sales);
     document.getElementById("reportMonthCount").textContent = String(totals.completed);
     document.getElementById("reportMonthUnpaid").textContent = String(totals.unpaid);
     document.getElementById("reportMonthNote").textContent =
       totals.requests + " online request" + (totals.requests === 1 ? "" : "s") + " received this month";
+  }
+
+  async function renderMonthTotals() {
+    var monthKey = selectedReportDay.slice(0, 7);
+    paintMonthTotals(monthKey, monthTotalsCache.totals);
+    try {
+      var totals = await api.loadMonthTotals(monthKey);
+      monthTotalsCache = { month: monthKey, totals: totals };
+      if (selectedReportDay.slice(0, 7) === monthKey) paintMonthTotals(monthKey, totals);
+    } catch {
+      // Leave the last known figures on screen if the lookup fails.
+    }
   }
 
   function showStaffView(view) {
@@ -334,7 +332,7 @@
     var chronological = ordersForDay(orders, selectedReportDay).sort(function (a, b) {
       return new Date(a.submittedAt) - new Date(b.submittedAt);
     });
-    var month = monthTotals(orders, selectedReportDay.slice(0, 7));
+    var month = monthTotalsCache.totals;
     var accepted = chronological.filter(function (order) { return order.status === "Accepted"; });
     var completed = chronological.filter(function (order) { return order.status === "Completed"; });
     var rejected = chronological.filter(function (order) { return order.status === "Rejected"; });
