@@ -107,6 +107,16 @@ Secrets and D1 data persist across deploys.
 
 ---
 
+## Data retention
+
+Orders hold customer names and phone numbers. A Cron Trigger (`0 5 * * *`,
+declared in `vite.config.ts`) deletes orders older than `ORDER_RETENTION_DAYS`
+(7) each night, skipping any still waiting on staff. 05:00 UTC is midnight
+Eastern in winter and 1am in summer, so it never fires while the shop is open.
+
+Day and month totals live in the `daily_totals` table and are unaffected by
+pruning, so reporting history survives indefinitely without keeping the tickets.
+
 ## Notes & caveats
 
 - **No `IMAGES` binding needed.** `worker/index.ts` has a `/_vinext/image`

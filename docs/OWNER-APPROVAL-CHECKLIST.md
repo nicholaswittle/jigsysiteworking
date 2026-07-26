@@ -1,12 +1,16 @@
 # Jigsy's Online Ordering — Owner Approval Checklist
 
-Purpose: capture the owner's written sign-off on everything a real (real-card)
-pilot depends on. Nothing here should be assumed — the current menu, prices, tax
-treatment, and fee wording in the demo are **placeholders pulled from public info
-and must be confirmed by an authorized Jigsy's owner.**
+Purpose: capture the owner's sign-off before the pilot goes live. Nothing here
+should be assumed — the menu, prices and tax treatment in the app are
+**placeholders pulled from public info and must be confirmed by an authorized
+Jigsy's owner.**
+
+Scope note: there is **no customer fee and no card handling**. Customers order
+online and pay at the counter on Jigsy's own Square, exactly as with a phone
+order. The app is order intake, staff console and kitchen ticket only.
 
 Fill in the "Owner confirms" column and have the owner initial/date the sign-off
-section at the bottom before any real-card pilot.
+section at the bottom before going live.
 
 ## 1. Menu accuracy
 
@@ -43,26 +47,32 @@ Jigsy's current offering:
 | Are any items tax-exempt? | |
 | Is tax shown as a separate line (current behavior) OK? | |
 
-## 4. The $0.99 online ordering fee
+## 4. Customer fee — RESOLVED, none charged
 
-- Demo adds a **$0.99 fee** (`feeCents: 99`) to each order total, shown as a
-  separate "Online ordering fee" line. Fee is reported only on **completed** paid
-  orders; rejected, cancelled, and **refunded** orders earn no fee.
+There is **no customer-facing service fee**. Customers pay food + tax exactly.
+The earlier $0.99 online ordering fee was removed (`feeCents` now defaults to 0)
+because the Jigsy's pilot is free — charging customers a fee that funded nothing
+would only have made their prices less competitive.
+
+`feeCents` remains a per-restaurant setting, so a future paying client can have a
+fee switched on without code changes. Nothing to confirm with the owner here.
+
+## 5. Payment model — RESOLVED, pay at the restaurant
+
+Customers pay **at the counter on Jigsy's own Square**, exactly as with a phone
+order. The app never touches money, never handles card data, and no longer pushes
+anything into their Square account.
+
+This is a deliberate limit, not an oversight: Square does not surface unpaid
+API-created orders to the seller (see `PRODUCTION-PLAN.md` section 3), so the
+options were to take payment online or stay out of the payment flow entirely. We
+chose the latter — this is the owner's workplace and breaking their payments is
+not an acceptable risk.
 
 | Question | Owner answer |
 |---|---|
-| Is $0.99 the agreed customer-facing fee? | |
-| Approve customer-facing wording "Online ordering fee"? | |
-| Approve receipt wording "$0.99 per completed and paid online order"? | |
-| Who keeps the fee, and how/when is it reconciled? | |
-
-## 5. Payment model
-
-| Question | Owner answer |
-|---|---|
-| Pilot starts as **pay-at-pickup** (no card)? | |
-| Or **card at checkout** via Square (needs steps below)? | |
-| For card mode: refunds are now supported (full refund from the staff console) — approved? | |
+| Confirm staff ring up online orders at the counter as they do phone orders | |
+| Is ringing the total as one amount acceptable, or do items need entering individually in Square? | |
 
 ## 6. Operational wording & policy
 
@@ -81,17 +91,27 @@ Jigsy's current offering:
 - [ ] Square printer profile confirmed (do **not** promise silent printing until tested)
 - [ ] iPad staff console installed to Home Screen (PWA) and confirmed on shop Wi-Fi
 
-## 8. Square (only for a real-card pilot — after the above)
+## 8. Square — not required for this pilot
 
-- [ ] Rotate the Sandbox application secret out of any past chat, into the Sites env only
-- [ ] Refunds tested end-to-end in Sandbox (authorize → capture → refund)
-- [ ] Production Square credentials created/approved
-- [ ] An **authorized Jigsy's owner** connects the correct Square **location** via OAuth
-- [ ] Written approval to run a tightly controlled live pilot
+The app does not connect to, write to, or take payment through Jigsy's Square.
+Nothing needs to be authorized, and no Square credentials are needed to go live.
+
+Outstanding hygiene on our side only:
+
+- [ ] Regenerate the exposed **sandbox** Square secrets/tokens (they appeared in a
+      working chat). Sandbox only — no access to any real account.
+
+## 9. Commercial terms
+
+- [ ] Confirm in writing that the pilot is **free**, with an end/review date
+- [ ] Confirm WiSense owns the software; Jigsy's has a licence to use it
+- [ ] Confirm support is best-effort, not 24/7
+- [ ] Agree the social proof exchange: a testimonial, permission to use the
+      Jigsy's name as a reference, and a post when it goes live
 
 ## Sign-off
 
 - Owner name: ______________________
 - Signature / initials: ______________________
 - Date: ______________________
-- Approved scope (circle): Sandbox practice only  /  Pay-at-pickup pilot  /  Real-card pilot
+- Approved scope (circle): Practice only  /  Live pay-at-counter pilot
