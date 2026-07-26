@@ -3,19 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Jigsy's Staff Order Console - Concept Demo</title>
-  <meta name="description" content="Interactive staff console concept for managing direct pickup orders at Jigsy's.">
+  <title>Jigsy's Staff Order Console</title>
+  <meta name="description" content="Secure staff console for managing Jigsy's direct pickup orders.">
   <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#17110D">
   <link rel="icon" href="images/square-logo-full.png" type="image/png">
-  <link rel="stylesheet" href="demo.css">
+  <link rel="manifest" href="staff.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Jigsy's Staff">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+  <link rel="stylesheet" href="demo.css?v=20260724-square">
 </head>
 <body>
-  <div class="demo-alert">Staff concept demo - changes affect this browser only.</div>
+  <div class="demo-alert">WiSense pilot practice build · shared test orders and settings update across devices.</div>
   <header class="demo-header">
     <nav class="demo-nav" aria-label="Demo navigation">
       <a class="demo-brand" href="index.html">Jigsy<span>'</span>s Staff</a>
       <div class="nav-actions">
         <a class="nav-link" href="index.html">Website</a>
+        <button class="nav-link" id="enableAlerts" type="button">Enable alerts</button>
+        <button class="nav-link" id="staffLogout" type="button">Sign out</button>
         <a class="cart-button" href="order-demo.html" style="text-decoration:none">Customer ordering</a>
       </div>
     </nav>
@@ -27,20 +36,21 @@
         <p class="eyebrow">Counter and kitchen view</p>
         <h1 class="staff-title">Accept and print</h1>
       </div>
-      <button class="secondary-button" id="seedOrders" type="button">Load sample rush</button>
+      <span class="connection-status" id="connectionStatus" role="status">Connecting…</span>
     </div>
 
     <section class="stats" aria-label="Order statistics">
       <div class="stat-card"><span>Waiting</span><strong id="statNew">0</strong></div>
-      <div class="stat-card"><span>Accepted</span><strong id="statAccepted">0</strong></div>
+      <div class="stat-card"><span>Done today</span><strong id="statAccepted">0</strong></div>
       <div class="stat-card"><span>Rejected</span><strong id="statRejected">0</strong></div>
-      <div class="stat-card"><span>WiSense fees today</span><strong id="statFees">$0.00</strong></div>
+      <div class="stat-card"><span>Sales today</span><strong id="statFees">$0.00</strong></div>
     </section>
 
     <div class="staff-tabs" role="tablist" aria-label="Staff console views">
       <button class="staff-tab" id="ordersTab" type="button" role="tab" aria-selected="true" aria-controls="ordersView">Orders</button>
       <button class="staff-tab" id="menuTab" type="button" role="tab" aria-selected="false" aria-controls="menuView">Menu availability</button>
       <button class="staff-tab" id="reportTab" type="button" role="tab" aria-selected="false" aria-controls="reportView">Daily report</button>
+      <button class="staff-tab" id="paymentsTab" type="button" role="tab" aria-selected="false" aria-controls="paymentsView">Payments</button>
     </div>
 
     <div class="staff-grid" id="ordersView" role="tabpanel" aria-labelledby="ordersTab">
@@ -49,7 +59,7 @@
           <div class="toggle-row">
             <div>
               <h2>Pause online orders</h2>
-              <p class="fine-print">Customer ordering closes immediately in this browser.</p>
+              <p class="fine-print">Customer ordering closes immediately on every device.</p>
             </div>
             <button class="switch" id="pauseToggle" type="button" role="switch" aria-checked="false" aria-label="Pause online orders"></button>
           </div>
@@ -65,7 +75,7 @@
           <p class="fine-print prep-range">Adjustable from 10 to 90 minutes in 5-minute steps.</p>
         </section>
         <section class="panel-section">
-          <button class="danger-button full-button" id="resetDemo" type="button">Reset all demo data</button>
+          <div class="payment-mode"><strong>Payment mode</strong><span id="paymentMode">Manual · pay at pickup</span></div>
         </section>
       </aside>
 
@@ -77,7 +87,8 @@
           </div>
           <div class="order-filters">
             <button class="filter-button" type="button" data-filter="New" aria-pressed="true">Waiting</button>
-            <button class="filter-button" type="button" data-filter="Accepted" aria-pressed="false">Accepted</button>
+            <button class="filter-button" type="button" data-filter="Completed" aria-pressed="false">Completed</button>
+            <button class="filter-button" type="button" data-filter="Unpaid" aria-pressed="false">Not paid</button>
             <button class="filter-button" type="button" data-filter="Rejected" aria-pressed="false">Rejected</button>
             <button class="filter-button" type="button" data-filter="All" aria-pressed="false">All</button>
           </div>
@@ -114,39 +125,103 @@
       </div>
       <div class="report-summary">
         <div class="report-total">
-          <span>WiSense order fees earned</span>
-          <strong id="reportFees">$0.00</strong>
-          <small>$0.99 for each accepted online order</small>
+          <span>Completed order value</span>
+          <strong id="reportSales">$0.00</strong>
+          <small>Total of all completed online orders on this date</small>
         </div>
         <div class="report-metric">
-          <span>Accepted orders</span>
+          <span>Completed orders</span>
           <strong id="reportCount">0</strong>
         </div>
         <div class="report-metric">
           <span>Rejected orders</span>
           <strong id="reportRejected">0</strong>
         </div>
+      </div>
+
+      <h3 class="report-subhead" id="reportMonthHeading">This month</h3>
+      <div class="report-summary">
+        <div class="report-total">
+          <span>Completed order value</span>
+          <strong id="reportMonthSales">$0.00</strong>
+          <small id="reportMonthNote">Total online sales for the month</small>
+        </div>
         <div class="report-metric">
-          <span>Accepted order value</span>
-          <strong id="reportSales">$0.00</strong>
+          <span>Completed orders</span>
+          <strong id="reportMonthCount">0</strong>
+        </div>
+        <div class="report-metric">
+          <span>Not paid</span>
+          <strong id="reportMonthUnpaid">0</strong>
         </div>
       </div>
       <div class="report-table-wrap">
         <table class="report-table">
           <thead>
-            <tr><th>Received</th><th>Order</th><th>Status</th><th>Order total</th><th>WiSense fee</th></tr>
+            <tr><th>Received</th><th>Order</th><th>Status</th><th>Order total</th></tr>
           </thead>
           <tbody id="reportRows"></tbody>
         </table>
       </div>
-      <p class="report-note">Only accepted orders earn the $0.99 fee. Orders are archived by date instead of deleted. This concept demo stores reports only on this device; production reporting will be shared and permanent.</p>
+      <p class="report-note">Every online request is kept in the permanent daily record, including rejected, cancelled, and not-paid orders.</p>
+    </section>
+
+    <section class="payments-panel" id="paymentsView" role="tabpanel" aria-labelledby="paymentsTab" hidden>
+      <div class="payments-head">
+        <div>
+          <p class="eyebrow">Practice connection</p>
+          <h2>Square Sandbox</h2>
+          <p class="fine-print">Connect a Square test business without using real customer cards or moving real money.</p>
+        </div>
+        <span class="square-environment">Sandbox · test only</span>
+      </div>
+      <div class="square-card">
+        <div>
+          <span class="square-status" id="squareStatusBadge">Checking…</span>
+          <h3 id="squareStatusTitle">Checking the Square connection</h3>
+          <p id="squareStatusCopy">The staff console is checking the protected connection.</p>
+          <dl class="square-details" id="squareDetails" hidden>
+            <div><dt>Square location</dt><dd id="squareLocation">—</dd></div>
+            <div><dt>Merchant ID</dt><dd id="squareMerchant">—</dd></div>
+            <div><dt>Connection expires</dt><dd id="squareExpires">—</dd></div>
+          </dl>
+        </div>
+        <div class="square-actions">
+          <button class="primary-button" id="connectSquare" type="button">Connect Square Sandbox</button>
+          <button class="secondary-button" id="disconnectSquare" type="button" hidden>Disconnect test account</button>
+        </div>
+      </div>
+      <div class="square-checkout-control" id="squareCheckoutControl" hidden>
+        <div>
+          <span class="square-status" id="squareCheckoutBadge">Checkout off</span>
+          <h3>Sandbox card checkout</h3>
+          <p>When enabled, customers enter a Square test card. Submitting authorizes the total, Accept &amp; print captures it, and Reject voids it.</p>
+        </div>
+        <button class="primary-button" id="toggleSquareCheckout" type="button">Enable test checkout</button>
+      </div>
+      <div class="sandbox-note">
+        <strong>Sandbox safety</strong>
+        <p>This uses Square’s isolated test environment and test card numbers only. It cannot charge a real card. Switching checkout off immediately returns customer orders to manual pay at pickup.</p>
+      </div>
     </section>
   </main>
 
   <section class="print-ticket" id="printTicket" aria-hidden="true"></section>
+  <section class="staff-auth" id="staffAuth" aria-labelledby="staffAuthTitle">
+    <form class="staff-auth-card" id="staffLoginForm">
+      <p class="eyebrow">Protected staff area</p>
+      <h1 id="staffAuthTitle">Open the order console</h1>
+      <p>Enter the restaurant staff passcode. Jigsy's Square password is never used here.</p>
+      <label for="staffPin">Staff passcode</label>
+      <input id="staffPin" name="staffPin" type="password" inputmode="numeric" autocomplete="current-password" required maxlength="64">
+      <p class="auth-error" id="staffAuthError" role="alert"></p>
+      <button class="primary-button full-button" type="submit">Open console</button>
+    </form>
+  </section>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <footer class="demo-credit">Created by <a href="https://www.wisensellc.com" target="_blank" rel="noopener">WiSense LLC</a></footer>
   <script src="demo-data.js"></script>
-  <script src="staff-demo.js"></script>
+  <script src="api-client.js?v=20260724-square"></script>
+  <script src="staff-demo.js?v=20260724-square"></script>
 </body>
 </html>

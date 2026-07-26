@@ -804,8 +804,8 @@
 <body>
 
 <div class="demo-ribbon">
-  Ordering concept demo - no live payments or restaurant orders.
-  <a href="order-demo.html" data-online-order-link>Try customer ordering</a>
+  WiSense pilot build - test orders reach the private demo console, not the restaurant.
+  <a href="order-demo.html" data-online-order-link>Order online</a>
   <a href="staff-demo.html">Open staff console</a>
 </div>
 
@@ -821,7 +821,7 @@
       <a class="nav-link" href="#menu">Menu</a>
       <a class="nav-link" href="#faq">FAQ</a>
       <a class="nav-link" href="#visit">Visit</a>
-      <a class="nav-link" href="order-demo.html" data-online-order-link>Ordering demo</a>
+      <a class="nav-link" href="order-demo.html" data-online-order-link>Order online</a>
       <span class="sep"></span>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch color theme">Dark</button>
       <a class="call-btn" href="tel:+17177327708">Call to order</a>
@@ -842,7 +842,7 @@
     <div class="cta-row">
       <a class="btn btn-primary" href="tel:+17177327708">Call · (717) 732-7708</a>
       <a class="btn btn-ghost" href="#menu">See the menu →</a>
-      <a class="btn btn-ghost" href="order-demo.html" data-online-order-link>Preview online pickup →</a>
+      <a class="btn btn-ghost" href="order-demo.html" data-online-order-link>Start online pickup →</a>
     </div>
   </div>
 </header>
@@ -917,7 +917,7 @@
       <h2>Call It In</h2>
       <p class="order-lede">We're phone-order and dine-in — no app, no online cart. Pick out your tray, pick up the phone, and we'll have it hot.</p>
       <a class="order-phone" href="tel:+17177327708">(717) 732-7708</a>
-      <p data-online-order-link><a class="btn btn-primary" href="order-demo.html">Preview pickup ordering</a></p>
+      <p data-online-order-link><a class="btn btn-primary" href="order-demo.html">Start pickup ordering</a></p>
       <p class="order-status" id="orderStatus"><span class="beat"></span><span id="orderStatusText">Checking today's hours…</span></p>
     </div>
     <div class="order-steps scroll-in">
@@ -1293,6 +1293,7 @@
 </div>
 
 <script src="demo-data.js"></script>
+<script src="api-client.js?v=20260724-square"></script>
 <script>
   (function () {
     var root = document.documentElement;
@@ -1307,6 +1308,23 @@
     }
 
     syncOnlineOrderLinks();
+    async function refreshOnlineOrderState() {
+      try {
+        await window.WiSenseOrdering.loadPublicSettings();
+      } catch (error) {
+        window.JigsyDemo.write(window.JigsyDemo.keys.settings, {
+          paused: true,
+          prepMinutes: 30,
+          soldOut: [],
+          fee: 0.99,
+          taxRate: 0.06,
+          paymentMode: "manual"
+        });
+      }
+      syncOnlineOrderLinks();
+    }
+    refreshOnlineOrderState();
+    window.setInterval(refreshOnlineOrderState, 10000);
     window.addEventListener("storage", syncOnlineOrderLinks);
     window.addEventListener("jigsy-demo-change", syncOnlineOrderLinks);
 

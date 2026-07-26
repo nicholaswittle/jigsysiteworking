@@ -1,0 +1,917 @@
+{
+  "products": [
+    {
+      "id": "traditional-red",
+      "name": "Traditional Red Tray",
+      "category": "House trays",
+      "description": "Sauce and cheese on Jigsy's Old Forge steel-pan crust.",
+      "badge": "House style",
+      "type": "tray",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 7.49
+        },
+        {
+          "label": "6 cuts",
+          "price": 14.99
+        },
+        {
+          "label": "12 cuts",
+          "price": 18.99
+        }
+      ]
+    },
+    {
+      "id": "single-white",
+      "name": "Single White Tray",
+      "category": "House trays",
+      "description": "Single crust and cheese with no red sauce.",
+      "badge": "Old Forge",
+      "type": "tray",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 8.49
+        },
+        {
+          "label": "6 cuts",
+          "price": 15.99
+        },
+        {
+          "label": "12 cuts",
+          "price": 20.99
+        }
+      ]
+    },
+    {
+      "id": "double-white",
+      "name": "Double White Tray",
+      "category": "House trays",
+      "description": "Stuffed double crust with cheese.",
+      "badge": "Local favorite",
+      "type": "tray",
+      "sizes": [
+        {
+          "label": "6 cuts",
+          "price": 18.99
+        },
+        {
+          "label": "12 cuts",
+          "price": 26.99
+        }
+      ]
+    },
+    {
+      "id": "tomato-garlic-specialty",
+      "name": "Tomato & Garlic",
+      "category": "Specialty trays",
+      "description": "Cheese, tomato, and fresh garlic.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 10.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 16.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 24.99
+        }
+      ]
+    },
+    {
+      "id": "chick-fil-j",
+      "name": "Chick Fil “J”",
+      "category": "Specialty trays",
+      "description": "Buttery garlic sauce, crispy chicken, sliced pickles, and cheese.",
+      "badge": "House signature",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 11.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 18.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 27.99
+        }
+      ]
+    },
+    {
+      "id": "chicken-bacon-ranch",
+      "name": "Chicken Bacon Ranch",
+      "category": "Specialty trays",
+      "description": "Cheese, house-made ranch, grilled chicken, and crispy bacon.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 10.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 17.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 26.99
+        }
+      ]
+    },
+    {
+      "id": "buffalo-chicken-specialty",
+      "name": "Buffalo Chicken",
+      "category": "Specialty trays",
+      "description": "Hot sauce, cheese, and crispy chicken.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 10.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 17.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 26.99
+        }
+      ]
+    },
+    {
+      "id": "meatlovers",
+      "name": "Meatlovers",
+      "category": "Specialty trays",
+      "description": "Sauce, cheese, ham, pepperoni, sausage, and bacon.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 10.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 17.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 26.99
+        }
+      ]
+    },
+    {
+      "id": "spinach-tomato",
+      "name": "Spinach & Tomato",
+      "category": "Specialty trays",
+      "description": "Cheese, spinach, and tomato.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 10.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 16.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 24.99
+        }
+      ]
+    },
+    {
+      "id": "meatball-specialty",
+      "name": "Meatball",
+      "category": "Specialty trays",
+      "description": "Sauce, cheese, house-made meatballs, and fresh parmesan.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 11.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 18.99
+        },
+        {
+          "label": "12 cuts",
+          "price": 28.99
+        }
+      ]
+    },
+    {
+      "id": "chicken-bruschetta-specialty",
+      "name": "Chicken Bruschetta",
+      "category": "Specialty trays",
+      "description": "Light sauce, cheese, chicken, tomato, spinach, red onion, and garlic.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 10.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 17.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 26.99
+        }
+      ]
+    },
+    {
+      "id": "hot-oil-pepperoni",
+      "name": "Hot Oil Pepperoni",
+      "category": "Specialty trays",
+      "description": "Sauce, cheese, pepperoni, and Calabrian pepper oil.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 10.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 17.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 26.99
+        }
+      ]
+    },
+    {
+      "id": "rustico-specialty",
+      "name": "Rustico",
+      "category": "Specialty trays",
+      "description": "Cheese, pepperoni, sausage, green pepper, mushroom, and onion.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 10.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 17.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 26.99
+        }
+      ]
+    },
+    {
+      "id": "hawaiian",
+      "name": "Hawaiian",
+      "category": "Specialty trays",
+      "description": "Cheese, ham, and pineapple.",
+      "badge": "Specialty trays",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "3 cuts",
+          "price": 10.99
+        },
+        {
+          "label": "6 cuts",
+          "price": 17.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 26.99
+        }
+      ]
+    },
+    {
+      "id": "buffalo-chicken-gourmet",
+      "name": "Buffalo Chicken",
+      "category": "Gourmet trays",
+      "description": "Double crust with hot sauce, crispy chicken, and cheese.",
+      "badge": "Double crust",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "6 cuts",
+          "price": 20.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 30.99
+        }
+      ]
+    },
+    {
+      "id": "rustico-gourmet",
+      "name": "Rustico",
+      "category": "Gourmet trays",
+      "description": "Double crust with cheese, pepperoni, sausage, green pepper, mushroom, and onion.",
+      "badge": "Double crust",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "6 cuts",
+          "price": 20.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 30.99
+        }
+      ]
+    },
+    {
+      "id": "tomato-garlic-gourmet",
+      "name": "Tomato & Garlic",
+      "category": "Gourmet trays",
+      "description": "Double crust with cheese, tomato, and garlic.",
+      "badge": "Double crust",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "6 cuts",
+          "price": 19.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 29.99
+        }
+      ]
+    },
+    {
+      "id": "broccoli-gourmet",
+      "name": "Broccoli",
+      "category": "Gourmet trays",
+      "description": "Double crust with cheese and broccoli.",
+      "badge": "Double crust",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "6 cuts",
+          "price": 19.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 29.99
+        }
+      ]
+    },
+    {
+      "id": "pierogi-gourmet",
+      "name": "Pierogi",
+      "category": "Gourmet trays",
+      "description": "Double crust with cheese, pierogi, butter, and onion.",
+      "badge": "Double crust",
+      "type": "specialty",
+      "sizes": [
+        {
+          "label": "6 cuts",
+          "price": 20.49
+        },
+        {
+          "label": "12 cuts",
+          "price": 30.99
+        }
+      ]
+    },
+    {
+      "id": "jumbo-wings",
+      "name": "Jumbo Wings",
+      "category": "Wings",
+      "description": "Choose a count and one of Jigsy's classic or house sauces.",
+      "badge": "Simply the Best 2023",
+      "type": "wings",
+      "sizes": [
+        {
+          "label": "5 wings",
+          "price": 7.99
+        },
+        {
+          "label": "10 wings",
+          "price": 12.99
+        },
+        {
+          "label": "20 wings",
+          "price": 25.99
+        },
+        {
+          "label": "30 wings",
+          "price": 34.99
+        }
+      ]
+    },
+    {
+      "id": "traditional-stromboli",
+      "name": "Traditional Stromboli",
+      "category": "Stromboli & flatbreads",
+      "description": "Ham, pepperoni, sausage, onion, mushroom, green and sweet peppers, and hot peppers.",
+      "badge": "Stromboli & flatbreads",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 18.99
+        }
+      ]
+    },
+    {
+      "id": "cheesesteak-stromboli",
+      "name": "Cheesesteak Stromboli",
+      "category": "Stromboli & flatbreads",
+      "description": "Cheesesteak, onion, mushroom, and green peppers.",
+      "badge": "Stromboli & flatbreads",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 19.99
+        }
+      ]
+    },
+    {
+      "id": "buffalo-chicken-stromboli",
+      "name": "Buffalo Chicken Stromboli",
+      "category": "Stromboli & flatbreads",
+      "description": "Crispy chicken, hot sauce, and cheese.",
+      "badge": "Stromboli & flatbreads",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 19.99
+        }
+      ]
+    },
+    {
+      "id": "veggie-stromboli",
+      "name": "Veggie Stromboli",
+      "category": "Stromboli & flatbreads",
+      "description": "Tomato, spinach, garlic, and cheese.",
+      "badge": "Stromboli & flatbreads",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 18.99
+        }
+      ]
+    },
+    {
+      "id": "traditional-red-flatbread",
+      "name": "Traditional Red Flatbread",
+      "category": "Stromboli & flatbreads",
+      "description": "Sauce and cheese.",
+      "badge": "Stromboli & flatbreads",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 10.99
+        }
+      ]
+    },
+    {
+      "id": "bbq-chicken-flatbread",
+      "name": "BBQ Chicken Flatbread",
+      "category": "Stromboli & flatbreads",
+      "description": "BBQ sauce, cheese, grilled chicken, red onion, and ranch.",
+      "badge": "Stromboli & flatbreads",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 12.49
+        }
+      ]
+    },
+    {
+      "id": "chicken-bruschetta-flatbread",
+      "name": "Chicken Bruschetta Flatbread",
+      "category": "Stromboli & flatbreads",
+      "description": "Light sauce, chicken, cheese, tomato, spinach, red onion, and garlic.",
+      "badge": "Stromboli & flatbreads",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 12.49
+        }
+      ]
+    },
+    {
+      "id": "veggie-flatbread",
+      "name": "Veggie Flatbread",
+      "category": "Stromboli & flatbreads",
+      "description": "Spinach, tomato, garlic, and cheese.",
+      "badge": "Stromboli & flatbreads",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 11.49
+        }
+      ]
+    },
+    {
+      "id": "starter-antipasto",
+      "name": "Antipasto",
+      "category": "Starters",
+      "description": "Lettuce, ham, salami, cheese, pepperoni, tomato, onion, peppers, and black olive.",
+      "badge": "Starters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 17.99
+        }
+      ]
+    },
+    {
+      "id": "house-meatballs",
+      "name": "House-Made Meatballs",
+      "category": "Starters",
+      "description": "Hand-rolled with sauce, cheese, and a side of bread.",
+      "badge": "Starters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 11.99
+        }
+      ]
+    },
+    {
+      "id": "pepperoni-bread",
+      "name": "Pepperoni Bread",
+      "category": "Starters",
+      "description": "Stuffed with pepperoni and cheese with a side of sauce.",
+      "badge": "Starters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 12.99
+        }
+      ]
+    },
+    {
+      "id": "cheesy-bread",
+      "name": "Cheesy Bread",
+      "category": "Starters",
+      "description": "Cheese, fresh garlic, seasonings, and a side of sauce.",
+      "badge": "Starters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 9.99
+        }
+      ]
+    },
+    {
+      "id": "buffalo-chicken-cheese-fries",
+      "name": "Buffalo Chicken Cheese Fries",
+      "category": "Starters",
+      "description": "Crispy buffalo chicken, cheese, celery, and house-made bleu cheese.",
+      "badge": "Starters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 12.99
+        }
+      ]
+    },
+    {
+      "id": "fried-pickles",
+      "name": "Fried Pickles",
+      "category": "Starters",
+      "description": "Crispy fried pickle chips with house-made ranch.",
+      "badge": "Starters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 9.99
+        }
+      ]
+    },
+    {
+      "id": "mozzarella-sticks",
+      "name": "Mozzarella Sticks",
+      "category": "Starters",
+      "description": "Served with a side of sauce.",
+      "badge": "Starters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 8.99
+        }
+      ]
+    },
+    {
+      "id": "boneless-wings",
+      "name": "Boneless Wings",
+      "category": "Starters",
+      "description": "Choose any wing sauce; celery, ranch, or bleu cheese available.",
+      "badge": "Starters",
+      "type": "wings",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 10.99
+        }
+      ]
+    },
+    {
+      "id": "fries",
+      "name": "Fries",
+      "category": "Starters",
+      "description": "Add cheese or bacon in the item note.",
+      "badge": "Starters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 7.99
+        }
+      ]
+    },
+    {
+      "id": "pierogi",
+      "name": "Potato & Cheese Pierogi",
+      "category": "Starters",
+      "description": "Six pierogi with butter and onions.",
+      "badge": "Local favorite",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "6 pierogi",
+          "price": 8.99
+        }
+      ]
+    },
+    {
+      "id": "italian-chopped-salad",
+      "name": "Italian Chopped Salad",
+      "category": "Salads",
+      "description": "Lettuce, salami, pepperoni, cheese, chickpeas, and carrot.",
+      "badge": "Salads",
+      "type": "salad",
+      "sizes": [
+        {
+          "label": "Full salad",
+          "price": 14.99
+        }
+      ]
+    },
+    {
+      "id": "antipasto",
+      "name": "Antipasto Salad",
+      "category": "Salads",
+      "description": "Lettuce, ham, salami, cheese, pepperoni, tomato, onion, peppers, and black olive.",
+      "badge": "Salads",
+      "type": "salad",
+      "sizes": [
+        {
+          "label": "Full salad",
+          "price": 17.99
+        }
+      ]
+    },
+    {
+      "id": "caesar-salad",
+      "name": "Caesar Salad",
+      "category": "Salads",
+      "description": "Lettuce, fresh grated parmesan, and house-made croutons.",
+      "badge": "Salads",
+      "type": "salad",
+      "sizes": [
+        {
+          "label": "Full salad",
+          "price": 14.99
+        }
+      ]
+    },
+    {
+      "id": "chicken-bacon-ranch-salad",
+      "name": "Chicken Bacon Ranch Salad",
+      "category": "Salads",
+      "description": "Lettuce, chicken, bacon, tomato, cheese, and egg.",
+      "badge": "Salads",
+      "type": "salad",
+      "sizes": [
+        {
+          "label": "Full salad",
+          "price": 14.99
+        }
+      ]
+    },
+    {
+      "id": "greek-salad",
+      "name": "Greek Salad",
+      "category": "Salads",
+      "description": "Lettuce, tomato, cucumber, black olive, onion, and feta.",
+      "badge": "Salads",
+      "type": "salad",
+      "sizes": [
+        {
+          "label": "Full salad",
+          "price": 14.99
+        }
+      ]
+    },
+    {
+      "id": "grilled-chicken-salad",
+      "name": "Grilled Chicken Salad",
+      "category": "Salads",
+      "description": "Lettuce, chicken, cheese, tomato, cucumber, and onion.",
+      "badge": "Salads",
+      "type": "salad",
+      "sizes": [
+        {
+          "label": "Full salad",
+          "price": 14.99
+        }
+      ]
+    },
+    {
+      "id": "summer-salad",
+      "name": "Summer Salad (Seasonal)",
+      "category": "Salads",
+      "description": "Lettuce, pineapple, orange, strawberry, blueberry, walnut, and chicken.",
+      "badge": "Salads",
+      "type": "salad",
+      "sizes": [
+        {
+          "label": "Full salad",
+          "price": 15.99
+        }
+      ]
+    },
+    {
+      "id": "tossed-salad",
+      "name": "Tossed Salad",
+      "category": "Salads",
+      "description": "Lettuce, tomato, onion, cucumber, black olive, and cheese.",
+      "badge": "Salads",
+      "type": "salad",
+      "sizes": [
+        {
+          "label": "Full salad",
+          "price": 7.99
+        }
+      ]
+    },
+    {
+      "id": "italian-sub",
+      "name": "Italian Sub",
+      "category": "Subs & platters",
+      "description": "Ham, salami, provolone, lettuce, tomato, onion, peppers, oil, and vinegar.",
+      "badge": "Subs & platters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One sub",
+          "price": 12.99
+        }
+      ]
+    },
+    {
+      "id": "meatball-cheese-sub",
+      "name": "Meatball & Cheese Sub",
+      "category": "Subs & platters",
+      "description": "House-made meatballs, sauce, and cheese.",
+      "badge": "Subs & platters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One sub",
+          "price": 14.99
+        }
+      ]
+    },
+    {
+      "id": "cheesesteak-sub",
+      "name": "Cheesesteak Sub",
+      "category": "Subs & platters",
+      "description": "Sliced ribeye and cheese.",
+      "badge": "Subs & platters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One sub",
+          "price": 14.99
+        }
+      ]
+    },
+    {
+      "id": "kids-chicken-fries",
+      "name": "Kids Chicken & Fries",
+      "category": "Subs & platters",
+      "description": "Two chicken strips with fries.",
+      "badge": "Subs & platters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 8.99
+        }
+      ]
+    },
+    {
+      "id": "chicken-strips-fries",
+      "name": "Chicken Strips & Fries",
+      "category": "Subs & platters",
+      "description": "Four chicken strips with fries.",
+      "badge": "Subs & platters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "One order",
+          "price": 12.99
+        }
+      ]
+    },
+    {
+      "id": "soup-of-day",
+      "name": "Soup of the Day",
+      "category": "Subs & platters",
+      "description": "Ask staff about today's soup.",
+      "badge": "Subs & platters",
+      "type": "simple",
+      "sizes": [
+        {
+          "label": "Cup",
+          "price": 5.99
+        },
+        {
+          "label": "Bowl",
+          "price": 7.99
+        }
+      ]
+    }
+  ],
+  "toppings": [
+    "Pepperoni",
+    "Sausage",
+    "Ham",
+    "Green pepper",
+    "Sweet pepper",
+    "Hot pepper",
+    "Onion",
+    "Tomato",
+    "Mushroom",
+    "Broccoli",
+    "Bacon",
+    "Chicken",
+    "Pineapple",
+    "Spinach",
+    "Garlic"
+  ],
+  "sauces": [
+    "Hot",
+    "Mild",
+    "BBQ",
+    "Old Bay",
+    "Honey BBQ",
+    "Teriyaki",
+    "Classic Buffalo",
+    "Garlic Parm",
+    "Spicy Bleu Cheese",
+    "Spicy Ranch",
+    "Chicken Bacon Ranch",
+    "Salt & Vinegar",
+    "Buffalo Bay",
+    "Hot Garlic",
+    "Sweet Heat"
+  ],
+  "dressings": [
+    "House Italian",
+    "House Ranch",
+    "House Bleu Cheese",
+    "Thousand Island",
+    "Caesar"
+  ]
+}

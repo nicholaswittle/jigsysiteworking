@@ -1,21 +1,21 @@
-# Jigsy's Old Forge Pizza — isolated ordering demo
+# WiSense restaurant ordering platform — Jigsy's pilot
 
-This directory is a separate clone used to prototype direct pickup ordering
-without changing the original Jigsy website concept or its live deployment.
+This directory contains the reusable WiSense restaurant ordering foundation,
+with Jigsy's as the first restaurant configuration.
 
-## Demo routes
+## Ordering routes
 
-- `index.html` — existing concept site with links into the isolated demo
-- `order-demo.html` — customer pickup menu, modifiers, and a pay-at-pickup request
-- `staff-demo.html` — accept, reject, and print queue; automatic daily rollover;
+- `index.html` — restaurant website with ordering links controlled by staff
+- `order-demo.html` — customer pickup menu, modifiers, and shared order status
+- `staff-demo.html` — protected accept, reject, complete, and print queue; automatic daily rollover;
   printable daily reports; pickup-estimate, pause, and categorized full-menu
-  availability controls
+  availability controls; Square Sandbox connection status
 
-All orders and settings use browser-local storage. No payment information is
-requested, no backend is connected, and nothing reaches the restaurant. The
-demo print actions open the normal system print dialog with either a kitchen
-ticket or a full-day order report. Orders are retained by date for reporting,
-while the active queue shows only the current day.
+Orders and restaurant settings use a hosted shared database. Customer and staff
+devices see the same order queue, pause state, pickup estimate, and item
+availability. Manual-mode payments are collected at pickup. Print actions open
+the normal system print dialog with either a kitchen ticket or a full-day order
+report.
 
 The ordering and availability screens share the full priced menu represented on
 the concept board: 52 items across house trays, specialty trays, gourmet trays,
@@ -23,21 +23,28 @@ wings, stromboli and flatbreads, starters, salads, and subs and platters.
 Peanut Butter Pie remains on the website board but is not offered online until
 an owner-confirmed price is available.
 
-The customer page prominently mirrors the staff-set pickup estimate and keeps a
-persistent status card for the latest request. In the browser-local demo it
-changes from Waiting to Accepted or Not accepted when staff responds in the
-same browser. A production pilot must use the shared database and send the same
-outcome by SMS.
+The customer page mirrors the staff-set pickup estimate and uses a private
+status token to show Waiting, Accepted, Rejected, or Completed across devices.
+SMS remains a future optional notification channel.
 
 The public experience is designed as **one website with optional ordering**.
 When staff pauses online orders, every customer-facing ordering link disappears
 and the site continues as a normal menu, hours, phone, directions, and
-restaurant-information website. Reopening orders restores those links. In the
-current demo this setting is browser-local; production must store it in the
-shared database so every customer sees the same state.
+restaurant-information website. Reopening orders restores those links. The
+setting is shared through the hosted database so every customer sees the same
+state.
+
+The default payment mode is **manual / pay at pickup**. Only orders staff marks
+paid and completed count toward the $0.99 WiSense fee. The staff Payments tab
+can connect a Square Sandbox test business through OAuth, then independently
+turn Sandbox card checkout on or off. In Sandbox card mode, checkout authorizes
+the test payment, staff acceptance captures it, and rejection voids it. Tokens
+stay server-side and are encrypted in the database.
 
 See `docs/PRINTER-AND-ORDER-FLOW.md` for the proposed two-screen production
-architecture and receipt-printer options.
+architecture and receipt-printer options. See
+`docs/REUSABLE-RESTAURANT-PLATFORM.md` for the reusable product direction and
+`docs/SQUARE-SANDBOX.md` for the practice authorization flow.
 
 A redesign concept / practice template for **Jigsy's Brewpub & Restaurant**
 (Old Forge–style pizza, Enola, PA). Single self-contained `index.html` plus a

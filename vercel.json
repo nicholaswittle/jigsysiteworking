@@ -4,5 +4,17 @@
   "outputDirectory": "public",
   "framework": null,
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "https://jigsys-ordering-demo.wisense.workers.dev",
+      "permanent": false
+    },
+    {
+      "source": "/:path*",
+      "destination": "https://jigsys-ordering-demo.wisense.workers.dev/:path*",
+      "permanent": false
+    }
+  ]
 }

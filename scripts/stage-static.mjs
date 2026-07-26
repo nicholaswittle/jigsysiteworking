@@ -9,8 +9,11 @@ const files = [
   "staff-demo.html",
   "demo.css",
   "demo-data.js",
+  "api-client.js",
   "order-demo.js",
   "staff-demo.js",
+  "sw.js",
+  "staff.webmanifest",
 ];
 
 await rm(output, { recursive: true, force: true });

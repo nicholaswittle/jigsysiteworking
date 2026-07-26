@@ -14,12 +14,17 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+  // Nightly order prune. 05:00 UTC is midnight Eastern in winter and 1am in
+  // summer, so it never fires while the restaurant is still open.
+  triggers: { crons: ["0 5 * * *"] },
   d1_databases: d1
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          // For a standalone Cloudflare deploy set CF_D1_DATABASE_ID / _NAME at
+          // build time (see docs/CLOUDFLARE-DEPLOY.md). Unset = Sites placeholder.
+          database_name: process.env.CF_D1_DATABASE_NAME || "site-creator-d1",
+          database_id: process.env.CF_D1_DATABASE_ID || SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
         },
       ]
     : [],

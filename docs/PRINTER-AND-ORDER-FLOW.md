@@ -6,7 +6,7 @@ The finished system has two web views backed by the same online order database:
 
 1. **Customer ordering:** the public menu where a customer builds and sends a
    pickup request.
-2. **Jigsy's staff screen:** a password-protected page kept open on a tablet or
+2. **Jigsy's staff screen:** a passcode-protected page kept open on a tablet or
    computer at the restaurant. It receives new requests, lets staff pause
    ordering, and provides **Accept & Print** and **Reject** actions. Rejected
    requests remain in the daily record and do not incur the 99-cent fee.
@@ -24,9 +24,10 @@ production pilot should update that card through the shared database and send
 the same accepted/rejected result to the supplied phone number by SMS so the
 customer does not need to keep the page open.
 
-The current concept demo uses browser-local storage, so its two views only share
-orders inside the same browser. A real pilot must replace that local storage
-with a hosted database and add staff authentication.
+The pilot build uses a hosted shared database. Orders, status changes, pause
+state, pickup estimates, and menu availability update across customer and staff
+devices. The staff console uses a server-validated passcode and a time-limited
+secure session cookie.
 
 ## Pilot printing
 
@@ -61,13 +62,33 @@ The practical pilot sequence is:
 The active queue rolls over automatically at local midnight instead of deleting
 orders. Staff can choose a date in **Daily report** and print a receipt-width
 record of every request received, including accepted, rejected, and still
-waiting orders. Only accepted orders count toward the 99-cent WiSense fee.
+waiting orders. Only orders marked **Paid / Completed** count toward the
+99-cent WiSense fee. Accepted orders remain in progress until staff confirms
+payment at pickup.
 
-## Real pilot work still required
+## Implemented pilot foundation
 
 - Hosted order database shared by customer and staff devices
-- Password-protected staff access
-- New-order notification and live queue updates
-- Printer selection and test-ticket setup
-- Monthly accepted-order report for `accepted orders × $0.99`
-- Backup procedure if internet or the printer is unavailable
+- Passcode-protected staff access
+- New-order polling, audible alert, and browser notification support
+- Accept, reject, print, reprint, and mark-paid/completed actions
+- Shared pause, pickup estimate, and full-menu availability settings
+- Permanent daily reports with `completed paid orders × $0.99`
+- Manual pay-at-pickup mode with a Square-ready payment status field
+
+## Work still required before a live restaurant launch
+
+- Owner confirmation of every menu price, modifier, tax rule, and operating hour
+- Production staff passcode and owner-controlled recovery procedure
+- Receipt-printer model selection and a physical test-ticket session
+- Background push notifications if alerts must work while the iPad web app is
+  closed
+- Customer SMS provider and approved message wording, if SMS is required
+- Square OAuth approval and delayed-capture payment integration
+- Server-side Square catalog price validation before online card payments are
+  enabled
+- Written refund, cancellation, outage, and monthly billing procedures
+
+The system launches safely with online ordering paused and manual payments
+enabled. Square mode must not be switched on until an owner authorizes the
+connection and live payment tests pass.
