@@ -14,6 +14,9 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+  // Nightly order prune. 05:00 UTC is midnight Eastern in winter and 1am in
+  // summer, so it never fires while the restaurant is still open.
+  triggers: { crons: ["0 5 * * *"] },
   d1_databases: d1
     ? [
         {

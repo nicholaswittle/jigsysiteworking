@@ -1,7 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { handleOrderingApi, type OrderingEnv } from "./api";
+import { handleOrderingApi, pruneOldOrders, type OrderingEnv } from "./api";
 
 interface Env extends OrderingEnv {
   ASSETS: Fetcher;
@@ -45,6 +45,17 @@ const worker = {
     }
 
     return handler.fetch(request, env, ctx);
+  },
+
+  // Nightly cleanup after the restaurant closes. Scheduled at 05:00 UTC, which is
+  // midnight Eastern in winter and 1am in summer — always after close, never at
+  // 11pm during standard time.
+  async scheduled(_event: unknown, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      pruneOldOrders(env).catch((error) => {
+        console.error("Nightly order prune failed", error);
+      }),
+    );
   },
 };
 

@@ -402,6 +402,14 @@ async function recomputeDailyTotals(env: OrderingEnv, day: string) {
   `).bind(RESTAURANT_ID, day).first<{
     requests: number; completed: number; unpaid: number; rejected: number; sales_cents: number;
   }>();
+  // Once a day's orders are pruned it has no rows left to count, so recomputing
+  // would wipe a real total back to zero. Keep whatever was already recorded.
+  if ((totals?.requests ?? 0) === 0) {
+    const recorded = await env.DB.prepare(
+      "SELECT 1 AS present FROM daily_totals WHERE restaurant_id = ? AND day = ?",
+    ).bind(RESTAURANT_ID, day).first<{ present: number }>();
+    if (recorded) return;
+  }
   await env.DB.prepare(`
     INSERT INTO daily_totals (restaurant_id, day, requests, completed, unpaid, rejected, sales_cents, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -422,6 +430,31 @@ async function recomputeDailyTotals(env: OrderingEnv, day: string) {
     totals?.sales_cents ?? 0,
     new Date().toISOString(),
   ).run();
+}
+
+// Orders hold customer names and phone numbers; the restaurant keeps its printed
+// tickets, and the daily rollup keeps the numbers, so old rows are deleted
+// nightly. Change ORDER_RETENTION_DAYS to keep more or less history.
+const ORDER_RETENTION_DAYS = 7;
+
+export async function pruneOldOrders(env: OrderingEnv) {
+  await ensureSchema(env);
+  const cutoff = businessDay(
+    new Date(Date.now() - ORDER_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+  );
+  // Make sure each affected day's rollup is written before its orders go.
+  const days = await env.DB.prepare(
+    "SELECT DISTINCT business_day AS day FROM orders WHERE restaurant_id = ? AND business_day < ?",
+  ).bind(RESTAURANT_ID, cutoff).all<{ day: string }>();
+  for (const row of days.results ?? []) {
+    await recomputeDailyTotals(env, row.day);
+  }
+  // Anything still waiting on staff is left alone rather than silently dropped.
+  const result = await env.DB.prepare(
+    "DELETE FROM orders WHERE restaurant_id = ? AND business_day < ? AND status != 'New'",
+  ).bind(RESTAURANT_ID, cutoff).run();
+  console.log(`Pruned ${result.meta.changes ?? 0} orders before ${cutoff}`);
+  return result.meta.changes ?? 0;
 }
 
 async function getSettings(env: OrderingEnv) {
