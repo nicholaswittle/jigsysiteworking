@@ -74,6 +74,13 @@ a { color: inherit; }
   border: 1px solid var(--line);
   background: var(--surface);
 }
+.report-subhead {
+  margin: 26px 0 12px;
+  font: 800 0.78rem/1 var(--display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 /* The alert button has to read as on/off from across the kitchen. */
 .nav-link[data-alerts="on"] { background: #1f6b3a; border-color: #1f6b3a; color: #fff; }
 .nav-link[data-alerts="blocked"] { background: #8c2f22; border-color: #8c2f22; color: #fff; }

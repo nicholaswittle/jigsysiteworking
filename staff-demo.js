@@ -279,6 +279,40 @@
             displayStatus(order) + "</td><td>" + demo.money(order.totals.total) + "</td></tr>";
         }).join("")
       : '<tr><td colspan="4" class="report-empty">No online requests were received on this date.</td></tr>';
+
+    renderMonthTotals(orders);
+  }
+
+  // Totals for the calendar month containing the selected report date.
+  function monthTotals(orders, monthKey) {
+    var inMonth = orders.filter(function (order) {
+      return dayKey(order.submittedAt).slice(0, 7) === monthKey;
+    });
+    var completed = inMonth.filter(function (order) { return order.status === "Completed"; });
+    return {
+      requests: inMonth.length,
+      completed: completed.length,
+      unpaid: inMonth.filter(function (order) { return order.status === "Unpaid"; }).length,
+      sales: completed.reduce(function (sum, order) {
+        return sum + Number(order.totals.total || 0);
+      }, 0)
+    };
+  }
+
+  function monthLabel(monthKey) {
+    return new Date(monthKey + "-01T12:00:00")
+      .toLocaleDateString([], { month: "long", year: "numeric" });
+  }
+
+  function renderMonthTotals(orders) {
+    var monthKey = selectedReportDay.slice(0, 7);
+    var totals = monthTotals(orders, monthKey);
+    document.getElementById("reportMonthHeading").textContent = monthLabel(monthKey);
+    document.getElementById("reportMonthSales").textContent = demo.money(totals.sales);
+    document.getElementById("reportMonthCount").textContent = String(totals.completed);
+    document.getElementById("reportMonthUnpaid").textContent = String(totals.unpaid);
+    document.getElementById("reportMonthNote").textContent =
+      totals.requests + " online request" + (totals.requests === 1 ? "" : "s") + " received this month";
   }
 
   function showStaffView(view) {
@@ -300,6 +334,7 @@
     var chronological = ordersForDay(orders, selectedReportDay).sort(function (a, b) {
       return new Date(a.submittedAt) - new Date(b.submittedAt);
     });
+    var month = monthTotals(orders, selectedReportDay.slice(0, 7));
     var accepted = chronological.filter(function (order) { return order.status === "Accepted"; });
     var completed = chronological.filter(function (order) { return order.status === "Completed"; });
     var rejected = chronological.filter(function (order) { return order.status === "Rejected"; });
@@ -326,6 +361,11 @@
       (rows || '<div class="ticket-center">NO ONLINE REQUESTS</div>') +
       '<div class="ticket-rule"></div>' +
       '<div class="ticket-total"><span>Completed order value</span><strong>' + demo.money(sales) + '</strong></div>' +
+      '<div class="ticket-rule"></div>' +
+      '<div class="ticket-center">' + monthLabel(selectedReportDay.slice(0, 7)).toUpperCase() + ' TO DATE</div>' +
+      '<div class="ticket-total"><span>Completed orders</span><strong>' + month.completed + '</strong></div>' +
+      '<div class="ticket-total"><span>Not paid</span><strong>' + month.unpaid + '</strong></div>' +
+      '<div class="ticket-total ticket-due"><span>Month order value</span><strong>' + demo.money(month.sales) + '</strong></div>' +
       '<div class="ticket-rule"></div>' +
       '<div class="ticket-center">Jigsy’s collects customer payment at pickup.</div>';
   }
