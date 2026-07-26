@@ -3,7 +3,6 @@ import menuCatalog from "../config/menu-catalog.json";
 const RESTAURANT_ID = "jigsys";
 const SESSION_COOKIE = "wisense_staff_session";
 const SQUARE_STATE_COOKIE = "wisense_square_oauth";
-const SQUARE_TAX_UID = "wisense-sales-tax";
 const SESSION_SECONDS = 12 * 60 * 60;
 const SQUARE_API_VERSION = "2026-07-15";
 const SQUARE_SCOPES = [
@@ -641,7 +640,6 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
   const body = await request.json().catch(() => ({})) as { action?: unknown };
   const action = cleanText(body.action, 30);
   const now = new Date().toISOString();
-  let squareOrderError: string | undefined;
   const existing = await env.DB.prepare(
     "SELECT * FROM orders WHERE restaurant_id = ? AND id = ?",
   ).bind(RESTAURANT_ID, id).first<StoredOrderRow>();
@@ -739,31 +737,12 @@ async function updateOrder(request: Request, env: OrderingEnv, id: string) {
     if (!result.meta.changes) {
       return json({ error: "The order changed before this action was applied. Refresh and try again." }, 409);
     }
-    // On acceptance, push the order into the connected Square account so it prints
-    // on the restaurant's Square system and staff take payment there. Non-fatal:
-    // the order is still accepted (and the app ticket still prints) if Square fails.
-    if (action === "accept" && !existing.square_order_id) {
-      const connection = await getSquareConnection(env);
-      if (connection) {
-        try {
-          const squareOrderId = await createSquareOrder(env, existing, connection);
-          await env.DB.prepare(
-            "UPDATE orders SET square_order_id = ? WHERE restaurant_id = ? AND id = ?",
-          ).bind(squareOrderId, RESTAURANT_ID, id).run();
-        } catch (error) {
-          console.error("Square order creation failed", error);
-          squareOrderError = error instanceof SquarePaymentError
-            ? error.message
-            : "The order was accepted but could not be sent to Square.";
-        }
-      }
-    }
   }
 
   const row = await env.DB.prepare(
     "SELECT * FROM orders WHERE restaurant_id = ? AND id = ?",
   ).bind(RESTAURANT_ID, id).first<StoredOrderRow>();
-  return json({ order: row ? rowToOrder(row, true) : null, squareOrderError });
+  return json({ order: row ? rowToOrder(row, true) : null });
 }
 
 async function updateSettings(request: Request, env: OrderingEnv) {
@@ -982,72 +961,6 @@ async function refundSquarePayment(
   return result.data.refund.id;
 }
 
-async function createSquareOrder(env: OrderingEnv, order: StoredOrderRow, connection: SquareConnectionRow) {
-  const settings = await getSettings(env);
-  const items = JSON.parse(order.items_json) as Array<{ name?: string; detail?: string; price?: number }>;
-  // Sales tax covers the food and the ordering fee, matching how the customer
-  // total is calculated, so the Square ticket rings up the amount they saw.
-  const taxable = order.tax_cents > 0 && settings.taxRate > 0;
-  const appliedTaxes = taxable ? [{ tax_uid: SQUARE_TAX_UID }] : undefined;
-  const lineItems: Array<Record<string, unknown>> = items.map((item, index) => ({
-    uid: `item-${index}`,
-    name: String(item.name ?? "Item").slice(0, 512),
-    quantity: "1",
-    base_price_money: { amount: Math.round(Number(item.price ?? 0) * 100), currency: "USD" },
-    note: item.detail ? String(item.detail).slice(0, 500) : undefined,
-    applied_taxes: appliedTaxes,
-  }));
-  if (order.fee_cents > 0) {
-    lineItems.push({
-      uid: "online-fee",
-      name: "Online ordering fee",
-      quantity: "1",
-      base_price_money: { amount: order.fee_cents, currency: "USD" },
-      applied_taxes: appliedTaxes,
-    });
-  }
-  const customer = JSON.parse(order.customer_json) as { name?: string; phone?: string };
-  const pickupAt = new Date(Date.now() + order.pickup_minutes * 60_000).toISOString();
-  const result = await squareApiRequest<{ order?: { id?: string } }>(env, "/v2/orders", {
-    method: "POST",
-    body: JSON.stringify({
-      idempotency_key: `wisense-order-${order.id}-${randomToken().slice(0, 12)}`,
-      order: {
-        location_id: connection.location_id,
-        reference_id: order.id,
-        line_items: lineItems,
-        taxes: taxable
-          ? [{
-              uid: SQUARE_TAX_UID,
-              name: "Sales tax",
-              percentage: String(Number((settings.taxRate * 100).toFixed(4))),
-              scope: "LINE_ITEM",
-              type: "ADDITIVE",
-            }]
-          : undefined,
-        fulfillments: [
-          {
-            type: "PICKUP",
-            state: "PROPOSED",
-            pickup_details: {
-              recipient: {
-                display_name: customer.name || "Online order",
-                phone_number: customer.phone || undefined,
-              },
-              schedule_type: "ASAP",
-              pickup_at: pickupAt,
-              note: order.notes ? order.notes.slice(0, 500) : undefined,
-            },
-          },
-        ],
-      },
-    }),
-  });
-  if (!result.response.ok || !result.data.order?.id) {
-    throw new SquarePaymentError(squarePaymentMessage(result.data, "Square could not record the order."));
-  }
-  return result.data.order.id;
-}
 
 async function publicSquareConfig(env: OrderingEnv) {
   const settings = await getSettings(env);

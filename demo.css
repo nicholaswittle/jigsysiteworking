@@ -74,9 +74,6 @@ a { color: inherit; }
   border: 1px solid var(--line);
   background: var(--surface);
 }
-.square-sync { font: 750 0.72rem/1.5 var(--display); }
-.square-sync.is-sent { color: #1f6b3a; }
-.square-sync.is-missing { color: #8c2f22; }
 /* The alert button has to read as on/off from across the kitchen. */
 .nav-link[data-alerts="on"] { background: #1f6b3a; border-color: #1f6b3a; color: #fff; }
 .nav-link[data-alerts="blocked"] { background: #8c2f22; border-color: #8c2f22; color: #fff; }

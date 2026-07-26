@@ -197,13 +197,6 @@
             ? demo.money(order.totals.total) + " paid · completed"
             : demo.money(order.totals.total) + " due at pickup";
         }
-        // Lets staff confirm at a glance that the order reached Square.
-        var squareLine = "";
-        if (order.status === "Completed" || order.status === "Unpaid") {
-          squareLine = order.squareOrderId
-            ? '<br><span class="square-sync is-sent">✓ Sent to Square</span>'
-            : '<br><span class="square-sync is-missing">Not sent to Square</span>';
-        }
         var refundable = order.paymentMode === "square" && order.paymentStatus === "completed";
         var refundButton = refundable
           ? '<button type="button" data-refund="' + order.id + '" class="reject">Refund payment</button>'
@@ -233,7 +226,7 @@
           '<div class="order-card-body"><ul class="order-items">' + items + '</ul><div class="order-customer"><strong>' +
           demo.escapeHTML(order.customer.name) + '</strong><br>' + demo.escapeHTML(order.customer.phone) +
           (order.notes ? "<br>Note: " + demo.escapeHTML(order.notes) : "") +
-          '<br><strong>' + paymentLine + '</strong>' + squareLine + '</div></div>' +
+          '<br><strong>' + paymentLine + '</strong></div></div>' +
           '<div class="order-actions">' + action + '</div></article>';
       }).join("");
     }
@@ -404,13 +397,9 @@
 
   async function acceptOrder(id) {
     try {
-      var result = await api.updateOrder(id, "accept");
+      await api.updateOrder(id, "accept");
       await refreshStaffData();
-      if (result.squareOrderError) {
-        showToast(result.squareOrderError);
-      } else {
-        showToast(id + " accepted &amp; sent to Square.");
-      }
+      showToast(id + " accepted. Print the ticket for the kitchen.");
     } catch (error) {
       handleStaffError(error);
     }
