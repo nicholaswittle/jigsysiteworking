@@ -101,7 +101,9 @@ const DEFAULT_SETTINGS: RestaurantSettings = {
   paused: true,
   prepMinutes: 30,
   soldOut: [],
-  feeCents: 99,
+  // No customer-facing service fee. Kept as a setting so it can be switched on
+  // per restaurant without code changes.
+  feeCents: 0,
   taxRate: 0.06,
   paymentMode: "manual",
   squareConnected: false,

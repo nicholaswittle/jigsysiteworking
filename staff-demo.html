@@ -43,7 +43,7 @@
       <div class="stat-card"><span>Waiting</span><strong id="statNew">0</strong></div>
       <div class="stat-card"><span>Done today</span><strong id="statAccepted">0</strong></div>
       <div class="stat-card"><span>Rejected</span><strong id="statRejected">0</strong></div>
-      <div class="stat-card"><span>Completed fees today</span><strong id="statFees">$0.00</strong></div>
+      <div class="stat-card"><span>Sales today</span><strong id="statFees">$0.00</strong></div>
     </section>
 
     <div class="staff-tabs" role="tablist" aria-label="Staff console views">
@@ -125,9 +125,9 @@
       </div>
       <div class="report-summary">
         <div class="report-total">
-          <span>WiSense order fees earned</span>
-          <strong id="reportFees">$0.00</strong>
-          <small>$0.99 for each completed and paid online order</small>
+          <span>Completed order value</span>
+          <strong id="reportSales">$0.00</strong>
+          <small>Total of all completed online orders on this date</small>
         </div>
         <div class="report-metric">
           <span>Completed orders</span>
@@ -137,20 +137,16 @@
           <span>Rejected orders</span>
           <strong id="reportRejected">0</strong>
         </div>
-        <div class="report-metric">
-          <span>Completed order value</span>
-          <strong id="reportSales">$0.00</strong>
-        </div>
       </div>
       <div class="report-table-wrap">
         <table class="report-table">
           <thead>
-            <tr><th>Received</th><th>Order</th><th>Status</th><th>Order total</th><th>WiSense fee</th></tr>
+            <tr><th>Received</th><th>Order</th><th>Status</th><th>Order total</th></tr>
           </thead>
           <tbody id="reportRows"></tbody>
         </table>
       </div>
-      <p class="report-note">Only completed and paid orders earn the $0.99 fee. Rejected, cancelled, and waiting orders remain in the permanent daily record with a $0.00 fee.</p>
+      <p class="report-note">Every online request is kept in the permanent daily record, including rejected, cancelled, and not-paid orders.</p>
     </section>
 
     <section class="payments-panel" id="paymentsView" role="tabpanel" aria-labelledby="paymentsTab" hidden>

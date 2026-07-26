@@ -198,7 +198,7 @@
       : "Estimated due at pickup";
     document.getElementById("cartPaymentCopy").textContent = squareEnabled
       ? "Square authorizes this test total now. Accept captures it; Reject voids it. The $0.99 fee counts only after the order is completed."
-      : "The 99-cent fee is included in completed online pickup orders. Rejected orders do not incur the fee. Jigsy's collects the full amount at pickup.";
+      : "No extra fees. Jigsy's collects the full amount when you pick up.";
     document.getElementById("checkoutNotice").textContent = squareEnabled
       ? "Square Sandbox only: the test total is authorized when you send the request, captured only if staff accepts, and voided if rejected."
       : "Pay at pickup: no card details are requested. Jigsy's would accept the request and print a kitchen ticket before the order is confirmed.";
@@ -313,13 +313,13 @@
       title.textContent = order.id + " was refunded";
       copy.textContent = order.paymentMode === "square"
         ? "Jigsy’s refunded this order in full. The Square Sandbox test payment was returned and no fee applies."
-        : "Jigsy’s refunded this order in full. No online ordering fee applies.";
+        : "Jigsy’s refunded this order in full.";
     } else if (order.status === "Rejected" || order.status === "Cancelled") {
       badge.textContent = "Not accepted";
       title.textContent = order.id + " could not be accepted";
       copy.textContent = order.paymentMode === "square"
         ? "Jigsy’s was unable to take this request. The Square Sandbox authorization was voided and no test payment was captured."
-        : "Jigsy’s was unable to take this request. You will not be charged the online ordering fee. Please call the restaurant if you need help.";
+        : "Jigsy’s was unable to take this request. You have not been charged. Please call the restaurant if you need help.";
     } else {
       badge.textContent = "Waiting";
       title.textContent = order.id + " was sent to Jigsy’s";
@@ -383,7 +383,7 @@
   function totals() {
     var subtotal = cart.reduce(function (sum, item) { return sum + item.price; }, 0);
     var settings = demo.settings();
-    var fee = cart.length ? Number(settings.fee || 0.99) : 0;
+    var fee = cart.length ? Number(settings.fee ?? 0) : 0;
     // PA taxes the online ordering fee along with the food, so it is in the base.
     var tax = (subtotal + fee) * Number(settings.taxRate || 0.06);
     return { subtotal: subtotal, fee: fee, tax: tax, total: subtotal + fee + tax };
@@ -411,7 +411,9 @@
     }
     var t = totals();
     document.getElementById("cartSubtotal").textContent = demo.money(t.subtotal);
+    // Hide the fee row entirely when no service fee is configured.
     document.getElementById("cartFee").textContent = demo.money(t.fee);
+    document.getElementById("cartFeeRow").hidden = !t.fee;
     document.getElementById("cartTax").textContent = demo.money(t.tax);
     document.getElementById("cartTotal").textContent = demo.money(t.total);
     document.getElementById("checkoutTotal").textContent = demo.money(t.total);
@@ -683,7 +685,7 @@
         paused: true,
         prepMinutes: 30,
         soldOut: [],
-        fee: 0.99,
+        fee: 0,
         taxRate: 0.06,
         paymentMode: "manual"
       });

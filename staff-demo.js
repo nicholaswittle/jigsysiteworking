@@ -6,7 +6,6 @@
   var filter = "New";
   var toast = document.getElementById("toast");
   var ticket = document.getElementById("printTicket");
-  var ONLINE_ORDER_FEE = 0.99;
   var activeDay = dayKey(new Date());
   var selectedReportDay = activeDay;
   var activeAvailabilityCategory = demo.products[0].category;
@@ -210,14 +209,14 @@
         } else if (order.status === "Completed") {
           action = '<button type="button" data-print="' + order.id + '">Print ticket</button>' + refundButton +
             '<button type="button" data-unpaid="' + order.id + '" class="reject">Didn’t pay</button>' +
-            '<span class="fine-print">Counts toward the WiSense fee report. Mark “Didn’t pay” for a no-show to remove the $0.99.</span>';
+            '<span class="fine-print">Mark “Didn’t pay” if the customer never picked up.</span>';
         } else if (order.status === "Unpaid") {
           action = '<button type="button" data-markpaid="' + order.id + '" class="primary">Mark as paid</button>' +
-            '<span class="fine-print">No fee counted — customer did not pick up or pay.</span>';
+            '<span class="fine-print">Customer did not pick up or pay.</span>';
         } else if (order.status === "Refunded") {
-          action = '<span class="fine-print">Refunded orders remain in the daily report and do not earn a fee.</span>';
+          action = '<span class="fine-print">Refunded orders remain in the daily report.</span>';
         } else {
-          action = '<span class="fine-print">Rejected and cancelled orders remain in the daily report and do not earn a fee.</span>';
+          action = '<span class="fine-print">Rejected and cancelled orders remain in the daily report.</span>';
         }
         return '<article class="order-card">' +
           '<div class="order-card-top"><div><span class="order-id">' + demo.escapeHTML(order.id) + '</span> ' +
@@ -241,10 +240,10 @@
       String(todayOrders.filter(function (order) { return order.status === "Completed"; }).length);
     document.getElementById("statRejected").textContent =
       String(todayOrders.filter(function (order) { return order.status === "Rejected"; }).length);
-    var fees = completed.reduce(function (sum, order) {
-      return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
+    var salesToday = completed.reduce(function (sum, order) {
+      return sum + Number(order.totals.total || 0);
     }, 0);
-    document.getElementById("statFees").textContent = demo.money(fees);
+    document.getElementById("statFees").textContent = demo.money(salesToday);
     renderReport(allOrders);
   }
 
@@ -264,28 +263,22 @@
     });
     var completed = chronological.filter(function (order) { return order.status === "Completed"; });
     var rejected = chronological.filter(function (order) { return order.status === "Rejected"; });
-    var fees = completed.reduce(function (sum, order) {
-      return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
-    }, 0);
     var sales = completed.reduce(function (sum, order) {
       return sum + Number(order.totals.total || 0);
     }, 0);
     document.getElementById("reportCount").textContent = String(completed.length);
     document.getElementById("reportRejected").textContent = String(rejected.length);
-    document.getElementById("reportFees").textContent = demo.money(fees);
     document.getElementById("reportSales").textContent = demo.money(sales);
     document.getElementById("reportPeriod").textContent =
       chronological.length + " request" + (chronological.length === 1 ? "" : "s") +
       " received on " + new Date(selectedReportDay + "T12:00:00").toLocaleDateString() + ".";
     document.getElementById("reportRows").innerHTML = chronological.length
       ? chronological.map(function (order) {
-          var completedOrder = order.status === "Completed";
           return "<tr><td>" + new Date(order.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
             "</td><td><strong>" + demo.escapeHTML(order.id) + "</strong></td><td>" +
-            displayStatus(order) + "</td><td>" + demo.money(order.totals.total) + "</td><td>" +
-            demo.money(completedOrder ? (order.totals.fee || ONLINE_ORDER_FEE) : 0) + "</td></tr>";
+            displayStatus(order) + "</td><td>" + demo.money(order.totals.total) + "</td></tr>";
         }).join("")
-      : '<tr><td colspan="5" class="report-empty">No online requests were received on this date.</td></tr>';
+      : '<tr><td colspan="4" class="report-empty">No online requests were received on this date.</td></tr>';
   }
 
   function showStaffView(view) {
@@ -311,9 +304,6 @@
     var completed = chronological.filter(function (order) { return order.status === "Completed"; });
     var rejected = chronological.filter(function (order) { return order.status === "Rejected"; });
     var waiting = chronological.filter(function (order) { return order.status === "New"; });
-    var fees = completed.reduce(function (sum, order) {
-      return sum + Number(order.totals.fee || ONLINE_ORDER_FEE);
-    }, 0);
     var sales = completed.reduce(function (sum, order) {
       return sum + Number(order.totals.total || 0);
     }, 0);
@@ -322,8 +312,7 @@
         new Date(order.submittedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) +
         '</span><strong>' + displayStatus(order).toUpperCase() + "</strong></div>" +
         '<div class="ticket-total"><small>' + demo.money(order.totals.total) +
-        ' order</small><small>' + (order.status === "Completed" ? demo.money(order.totals.fee || ONLINE_ORDER_FEE) : "$0.00") +
-        " fee</small></div>";
+        ' order</small><small>' + displayStatus(order).toLowerCase() + "</small></div>";
     }).join("");
     return '<div class="ticket-center"><strong class="ticket-brand">JIGSY’S</strong><br>FULL-DAY ONLINE ORDER REPORT</div>' +
       '<div class="ticket-rule"></div>' +
@@ -337,10 +326,8 @@
       (rows || '<div class="ticket-center">NO ONLINE REQUESTS</div>') +
       '<div class="ticket-rule"></div>' +
       '<div class="ticket-total"><span>Completed order value</span><strong>' + demo.money(sales) + '</strong></div>' +
-      '<div class="ticket-total ticket-due"><span>WISENSE FEES</span><strong>' + demo.money(fees) + '</strong></div>' +
-      '<div class="ticket-center">$0.99 per completed and paid online order</div>' +
       '<div class="ticket-rule"></div>' +
-      '<div class="ticket-center">Jigsy’s collects customer payment at pickup.<br>Only completed orders earn a fee.</div>';
+      '<div class="ticket-center">Jigsy’s collects customer payment at pickup.</div>';
   }
 
   function printDailyReport() {
@@ -351,13 +338,13 @@
   }
 
   async function rejectOrder(id) {
-    if (!window.confirm("Reject " + id + "? It will remain in the daily report with a $0.00 WiSense fee.")) return;
+    if (!window.confirm("Reject " + id + "? It stays in the daily report as rejected.")) return;
     var order = ordersCache.find(function (item) { return item.id === id; });
     if (!order || order.status !== "New") return;
     try {
       await api.updateOrder(id, "reject");
       await refreshStaffData();
-      showToast(id + " rejected. No fee added.");
+      showToast(id + " rejected.");
     } catch (error) {
       handleStaffError(error);
     }
@@ -383,7 +370,7 @@
       '<div class="ticket-rule"></div>' +
       '<div class="ticket-total"><span>Food subtotal</span><strong>' + demo.money(order.totals.subtotal) + '</strong></div>' +
       '<div class="ticket-total"><span>Estimated tax</span><strong>' + demo.money(order.totals.tax) + '</strong></div>' +
-      '<div class="ticket-total"><span>Online ordering fee</span><strong>' + demo.money(order.totals.fee) + '</strong></div>' +
+      (order.totals.fee ? '<div class="ticket-total"><span>Online ordering fee</span><strong>' + demo.money(order.totals.fee) + '</strong></div>' : "") +
       '<div class="ticket-total ticket-due"><span>' +
         (order.paymentMode === "square" ? "SQUARE SANDBOX CAPTURED" : "DUE AT PICKUP") +
         '</span><strong>' + demo.money(order.totals.total) + '</strong></div>' +
@@ -424,8 +411,8 @@
   async function completeOrder(id) {
     var order = ordersCache.find(function (item) { return item.id === id; });
     var prompt = order && order.paymentMode === "square"
-      ? "Mark " + id + " completed? Its Sandbox payment was already captured when accepted, and this adds the $0.99 WiSense fee to the report."
-      : "Mark " + id + " paid and completed? This adds the $0.99 WiSense fee to the report.";
+      ? "Mark " + id + " completed? Its Sandbox payment was already captured when accepted."
+      : "Mark " + id + " paid and completed?";
     if (!window.confirm(prompt)) return;
     try {
       await api.updateOrder(id, "complete");
@@ -441,23 +428,23 @@
     if (!order || order.paymentMode !== "square" || order.paymentStatus !== "completed") return;
     if (!window.confirm(
       "Refund " + id + "? This returns the full " + demo.money(order.totals.total) +
-      " Square Sandbox payment. The order drops out of the WiSense fee report."
+      " Square Sandbox payment."
     )) return;
     try {
       await api.updateOrder(id, "refund");
       await refreshStaffData();
-      showToast(id + " refunded. No fee counted.");
+      showToast(id + " refunded.");
     } catch (error) {
       handleStaffError(error);
     }
   }
 
   async function markUnpaid(id) {
-    if (!window.confirm("Mark " + id + " as not paid? This removes its $0.99 from the WiSense fee report.")) return;
+    if (!window.confirm("Mark " + id + " as not paid? It will be recorded as a no-show.")) return;
     try {
       await api.updateOrder(id, "unpaid");
       await refreshStaffData();
-      showToast(id + " marked not paid. $0.99 removed.");
+      showToast(id + " marked not paid.");
     } catch (error) {
       handleStaffError(error);
     }
@@ -467,7 +454,7 @@
     try {
       await api.updateOrder(id, "markpaid");
       await refreshStaffData();
-      showToast(id + " marked paid. $0.99 restored.");
+      showToast(id + " marked paid.");
     } catch (error) {
       handleStaffError(error);
     }

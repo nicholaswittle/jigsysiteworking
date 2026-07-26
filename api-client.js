@@ -22,7 +22,7 @@
       paused: Boolean(settings.paused),
       prepMinutes: Number(settings.prepMinutes || 30),
       soldOut: Array.isArray(settings.soldOut) ? settings.soldOut : [],
-      fee: Number(settings.fee || 0.99),
+      fee: Number(settings.fee ?? 0),
       taxRate: Number(settings.taxRate || 0.06),
       paymentMode: settings.paymentMode || "manual",
       squareConnected: Boolean(settings.squareConnected)

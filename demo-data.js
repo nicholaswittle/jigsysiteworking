@@ -117,7 +117,7 @@
       paused: true,
       prepMinutes: 30,
       soldOut: [],
-      fee: 0.99,
+      fee: 0,
       taxRate: 0.06,
       paymentMode: "manual",
       squareConnected: false
